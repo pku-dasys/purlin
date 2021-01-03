@@ -61,6 +61,55 @@ sudo apt-get install verilator
 
 ## Quick Start
 
+###RTL Generation (in RTL/)
+
+Generate a default 4x4 2-channel distributed routing packet-switched network with 32-bit payload:
+``` shell
+make genDistributedRouting
+``` 
+
+Generate a default 4x4 2-channel source routing packet-switched network with 32-bit payload:
+``` shell
+make genSourceRouting
+``` 
+
+Generate a default 4x4 2-channel circuit-switched network (Fs = 8) with 32-bit payload:
+``` shell
+make genCircuitSwitched
+``` 
+
+###Running Simulation
+
+Explore a 2-channel 4x4 packet-switched distributed routing network under different injection rate:
+``` shell
+make testInjectionRate
+``` 
+
+Explore suitable parameters and injection rate where other algorithms perform better than XY-routing:
+``` shell
+make testAlgorithms
+``` 
+
+Compare packet-switched and circuit-switched 2-channel 4x4 networks:
+``` shell
+make testNetworkCompare
+``` 
  
 
+###Result Files
+
+####globalRouting.json / globalRoutingResult.json
+
+
+The routing tasks or strategies.
+You can refer to utils.JsonIO.scala.
+
+####*-DetailLatency.txt / latencyDistribution.txt
+
+The detail packet network latency of each packet, or the latency distribution.
+
+####NoCTestingResults.txt
+
+The details of simulation results for packet-switched networks.
+You can refer to NoC.MeshNoCTest.scala.
 

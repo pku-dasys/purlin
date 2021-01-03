@@ -23,9 +23,9 @@ object AlgorithmType extends Enumeration {
 
 object RouterCompiler extends App {
 
-//    compareNetworks()
-      exploreInjectionRate()
-//  exploreParameters()
+  //    compareNetworks()
+//  exploreInjectionRate()
+  //  exploreParameters()
 
 
   /** Compare packet-switched and circuit-switched 2-channel 4x4 networks.
@@ -565,7 +565,7 @@ object RouterCompiler extends App {
   /** Read the routing tasks or strategies from a JSON file.
    *
    * @param filename the name of th JSON file
-   **/
+   * */
   def readJson(filename: String = "globalRouting.json") = {
     val in = Source.fromFile(filename).getLines().reduce(_ + _)
     val json = Json.parse(in)
@@ -576,7 +576,7 @@ object RouterCompiler extends App {
    *
    * @param globalRouting routing tasks or strategies
    * @param filename      the name of th JSON file
-   **/
+   * */
   def writeJson(globalRouting: GlobalRouting, filename: String = "globalRouting.json"): Unit = {
     val json = GlobalRouting.write(globalRouting)
     val out = Json.prettyPrint(json)
@@ -593,7 +593,7 @@ object RouterCompiler extends App {
    * @param onceInjection  indicating whether only inject packets at cycle 0
    * @param packetNum      number of packets injected to each router, only used when onceInjection == false
    * @param randomPLength  indicating whether generating packets with different length
-   **/
+   * */
   def genRandomTask(injectionRatio: Double, model: MeshModel, packetLength: Int = 0,
                     onceInjection: Boolean = true, packetNum: Int = 0, randomPLength: Boolean = false) = {
     var messages = List[Message]()
@@ -671,5 +671,48 @@ object RouterCompiler extends App {
   }
 
 
+}
+
+/** Explore a 2-channel 4x4 packet-switched distributed routing network under different injection rate.
+ */
+object testInjectionRate extends App {
+  RouterCompiler.exploreInjectionRate()
+}
+
+/** Compare packet-switched and circuit-switched 2-channel 4x4 networks.
+ */
+object testNetworkCompare extends App {
+  RouterCompiler.compareNetworks()
+}
+
+/** Explore suitable parameters and injection rate where other algorithms perform better than XY-routing.
+ */
+object testAlgorithms extends App {
+  RouterCompiler.exploreParameters()
+}
+
+/** Generate a default 4x4 2-channel distributed routing packet-switched network with 32-bit payload.
+ */
+object genDistributedRouting extends App {
+  Parameters.retrench()
+  Parameters.abandonSourceRouting()
+  val network = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x), () => new MultiChannelPacket)
+  chisel3.Driver.execute(Array("-td", "RTL/"), network)
+}
+
+/** Generate a default 4x4 2-channel source routing packet-switched network with 32-bit payload.
+ */
+object genSourceRouting extends App {
+  Parameters.retrench()
+  val network = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x), () => new MultiChannelPacket)
+  chisel3.Driver.execute(Array("-td", "RTL/"), network)
+}
+
+/** Generate a default 4x4 2-channel circuit-switched network (Fs = 8) with 32-bit payload.
+ */
+object genCircuitSwitched extends App {
+  val model = new MeshSBModel(2, 4, 4, 8)
+  val network = () => new MeshSwitchBox(model, 32)
+  chisel3.Driver.execute(Array("-td", "RTL/"), network)
 }
 
