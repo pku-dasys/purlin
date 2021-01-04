@@ -624,7 +624,7 @@ object RouterCompiler extends App {
           dstY = scala.util.Random.nextInt(model.ySize)
           dstPortUsed = dstPortUsedMap.getOrElse((dstX, dstY), 0)
         }
-        dstPortUsedMap += (dstX, dstY) -> (srcPortUsedMap.getOrElse((dstX, dstY), 0) + 1)
+        dstPortUsedMap += (dstX, dstY) -> (dstPortUsedMap.getOrElse((dstX, dstY), 0) + 1)
 
         val pLength = if (randomPLength && packetLength > 0) {
           scala.util.Random.nextInt(packetLength - 1) + 1
