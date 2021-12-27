@@ -349,7 +349,7 @@ class NoCRouterModel {
   }
 
 
-  /** Find the port index of a direction.
+  /** Find the port index of a direction. (not used in fact)
    *
    * @param direction the direction in utils.Parameters (e.g. E = 0)
    * @return the port index
