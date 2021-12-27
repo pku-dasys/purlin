@@ -2,18 +2,18 @@ package tetriski.purlin.NoC
 
 import chisel3.util._
 import chisel3.{Module, UInt, _}
-import tetriski.purlin.utils.{Packet, Parameters}
+import tetriski.purlin.utils.{MiniPacket, Parameters}
 
 import scala.collection.mutable.ArrayBuffer
 
 
-class SimpleRouter(y: Int, x: Int) extends Router(y, x, () => new Packet) {
+class SimpleRouter(y: Int, x: Int) extends Router(y, x, () => new MiniPacket) {
 
 
   //initialization
   for (i <- 0 until size) {
     deqs(i).valid := false.B
-    val defaultPacket = Wire(new Packet)
+    val defaultPacket = Wire(new MiniPacket)
     defaultPacket.payload := 0.U
     defaultPacket.header.routing := defaultRouting
     defaultPacket.header.src.x := defaultX
@@ -37,7 +37,7 @@ class SimpleRouter(y: Int, x: Int) extends Router(y, x, () => new Packet) {
 //  dstPacketBuffer.io.deq.ready := false.B
 
 
-  val packetBuffer = Module(new FIFO(new Packet, Parameters.fifoDep, "packetBuffer"))
+  val packetBuffer = Module(new FIFO(new MiniPacket, Parameters.fifoDep, "packetBuffer"))
   packetBuffer.io.deq.ready := false.B
 
   var concatValid = io.enqs(0).valid.asUInt()
@@ -131,7 +131,7 @@ class SimpleRouter(y: Int, x: Int) extends Router(y, x, () => new Packet) {
         val deqSelIndex = MuxLookup(direction, 4.U(3.W), deqSeq)
         val deqSel = io.deqs(deqSelIndex)
         deqSel <> packetBuffer.io.deq
-        val newPacket = Wire(new Packet)
+        val newPacket = Wire(new MiniPacket)
         newPacket := packetBuffer.io.deq.bits
         newPacket.header.routing := routing(Parameters.log2Routing - 1, 2)
         deqSel.bits := newPacket

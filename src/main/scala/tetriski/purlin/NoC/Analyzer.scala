@@ -4,14 +4,14 @@ import chisel3.iotesters.PeekPokeTester
 import chisel3.util.{Cat, MuxLookup}
 import chisel3.{Bool, Bundle, Input, Module, Output, UInt, Vec, Wire, when, _}
 import tetriski.purlin._
-import tetriski.purlin.utils.{AnalyzedPacket, Coordinate, Packet, Parameters}
+import tetriski.purlin.utils.{AnalyzedPacket, Coordinate, MiniPacket, Parameters}
 
 import scala.collection.mutable.ArrayBuffer
 
 class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
                broadcastArray: Array[(Int, Int)]) extends Module {
   val io = IO(new Bundle() {
-    val packet = Input(new Packet)
+    val packet = Input(new MiniPacket)
     val analyzedPacket = Output(new AnalyzedPacket)
 
     val deqsReady = Input(Vec(size, Bool()))

@@ -3,11 +3,17 @@ package tetriski.purlin.utils
 import chisel3.util.log2Ceil
 import chisel3.{Bool, Bundle, UInt, _}
 
+/** Global parameters
+ */
 object Parameters {
   var xSize = 4
   var ySize = 4
 
+  /** A factor for congestion-aware algorithm
+   */
   var congestionFactor = 0.2
+  /** A factor for latency estimation algorithm
+   */
   var overlapPunishFactor = 1.0
 
   var tilePortSize = 1
@@ -18,6 +24,8 @@ object Parameters {
 
   var sourceRouting = true
 
+  /** Do not use source routing in packet-switched on-chip networks.
+   */
   def abandonSourceRouting(): Unit = {
     sourceRouting = false
   }
@@ -76,6 +84,8 @@ object Parameters {
 
   var useBroadcast = true
 
+  /** Retrench the packet-switched network by abandoning broadcast and srcPort in Header.
+   */
   def retrench(): Unit = {
     //abandon broadcast
     grantNumLimit = 1
@@ -108,6 +118,9 @@ object Parameters {
   }
 }
 
+
+/** A coordinate bundle.
+ */
 class Coordinate() extends Bundle {
   val x = UInt(Parameters.log2X.W)
   val y = UInt(Parameters.log2Y.W)
@@ -118,6 +131,8 @@ class Coordinate() extends Bundle {
 
 }
 
+/** A header bundle.
+ */
 class Header extends Bundle {
   val src = new Coordinate
   val dst = new Coordinate
@@ -125,27 +140,40 @@ class Header extends Bundle {
   val routing = UInt(Parameters.log2Routing.W)
 }
 
-class Packet extends Bundle {
+/** A mini-packet bundle.
+ */
+class MiniPacket extends Bundle {
   val header = new Header
   val payload = UInt(Parameters.payloadSize.W)
 }
 
+/** A bundle containing a mini-packet and its grants.
+ */
 class AnalyzedPacket extends Bundle {
-  val packet = new Packet
+  val packet = new MiniPacket
   val grantNum = UInt(log2Ceil(Parameters.grantNumLimit + 1).W)
   val grants = Vec(Parameters.grantNumLimit, UInt(Parameters.getGrantWidth.W))
 }
 
+/** A multi-channel packet containing some mini-packets.
+ * We consider a multi-channel packet composed of a valid number and some mini-packets
+ * as the basic transmission unit between routers
+ */
 class MultiChannelPacket extends Bundle {
   val validNum = UInt(log2Ceil(Parameters.channelSize + 1).W)
-  val packets = Vec(Parameters.channelSize, new Packet)
+  val packets = Vec(Parameters.channelSize, new MiniPacket)
 }
 
+
+/** A bundle containing some headers. (only used in CGRA testing)
+ */
 class DeliverCtrl extends Bundle {
   val validNum = UInt(log2Ceil(Parameters.tilePortSize + 1).W)
   val headers = Vec(Parameters.tilePortSize, new Header)
 }
 
+/** A bundle for checking after receiving a packet. (only used in CGRA testing)
+ */
 class ReceivePattern extends Bundle {
   val src = new Coordinate
   val srcPort = UInt(Parameters.log2TilePortSize.W)
@@ -154,6 +182,8 @@ class ReceivePattern extends Bundle {
   def check(header: Header) = (src === header.src) & (srcPort === header.srcPort)
 }
 
+/** A bundle for checking after receiving some packets. (only used in CGRA testing)
+ */
 class ReceiveCtrl extends Bundle {
   val validNum = UInt(log2Ceil(Parameters.tilePortSize + 1).W)
   val patterns = Vec(Parameters.tilePortSize, new ReceivePattern)

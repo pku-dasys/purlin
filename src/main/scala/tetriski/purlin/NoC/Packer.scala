@@ -2,7 +2,7 @@ package tetriski.purlin.NoC
 
 import chisel3.iotesters.PeekPokeTester
 import chisel3.{Bundle, Input, Output, _}
-import tetriski.purlin.utils.{AnalyzedPacket, MultiChannelPacket, Packet, Parameters}
+import tetriski.purlin.utils.{AnalyzedPacket, MultiChannelPacket, MiniPacket, Parameters}
 
 class Packer(numIn: Int, numOut: Int, betterFrequency: Boolean = false) extends Module {
   val io = IO(new Bundle() {
@@ -25,7 +25,7 @@ class Packer(numIn: Int, numOut: Int, betterFrequency: Boolean = false) extends 
 
     if (betterFrequency) {
       io.packedPacket(i).validNum := RegNext(filters(i).io.validNum)
-      io.packedPacket(i).packets := RegNext(filters(i).io.resources.asTypeOf(Vec(channelSize, new Packet)))
+      io.packedPacket(i).packets := RegNext(filters(i).io.resources.asTypeOf(Vec(channelSize, new MiniPacket)))
 
 //      val regValidNum = RegInit(0.U(filters(i).io.validNum.getWidth.W))
 //      val regPackets = RegInit(0.U(Vec(channelSize, new Packet).getWidth.W))
@@ -40,7 +40,7 @@ class Packer(numIn: Int, numOut: Int, betterFrequency: Boolean = false) extends 
 
     } else {
       io.packedPacket(i).validNum := filters(i).io.validNum
-      io.packedPacket(i).packets := filters(i).io.resources.asTypeOf(Vec(channelSize, new Packet))
+      io.packedPacket(i).packets := filters(i).io.resources.asTypeOf(Vec(channelSize, new MiniPacket))
     }
 
     filters(i).io.signalRequests.foreach(signal => signal := false.B)

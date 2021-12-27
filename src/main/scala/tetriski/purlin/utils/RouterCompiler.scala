@@ -240,7 +240,8 @@ object RouterCompiler extends App {
         }
       }
     }
-
+    /** A factor for historical congestion (pathFinder) algorithm
+     */
     val historicalPunish = 0.1
     val congestionLowerBound = 1
     val messageBuffer = new ArrayBuffer[Message]()
