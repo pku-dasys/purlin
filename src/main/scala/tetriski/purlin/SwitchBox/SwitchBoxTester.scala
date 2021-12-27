@@ -4,41 +4,19 @@ import chisel3.iotesters
 import chisel3.iotesters.PeekPokeTester
 import tetriski.purlin.utils.{GlobalRouting, MeshSBModel, Parameters}
 
+/** A simple tester of a circuit-switched network.
+ */
 object testMeshSB extends App {
+  val model = new MeshSBModel(2, 4, 4, 8)
+  val network = () => new MeshSwitchBox(model, 16)
 
-//  val model = new MeshSBModel(2, 2, 2, 4)
-//  val network = () => new MeshSBwithContext(model, 32, 256)
-//  chisel3.Driver.execute(Array("-td", "PurlinResult/RTL/SwitchBox-Fs/"), network)
-
-  for(c <- 2 until 4) {
-    for (fs <- 4 until 9) {
-      val model = new MeshSBModel(c, 4, 4, fs)
-      val network = () => new MeshSBwithContext(model, 32, 1)
-      chisel3.Driver.execute(Array("-td", "PurlinResult/RTL/SwitchBox-Fs/"), network)
-    }
+  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
+    c => new MeshSBTester(c, model)
   }
-
-//  for(routersPerDim <- 2 until 7) {
-//    val model = new MeshSBModel(2, routersPerDim, routersPerDim, 4)
-//    val network = () => new MeshSBwithContext(model, 32, 256)
-//    chisel3.Driver.execute(Array("-td", "PurlinResult/RTL/SwitchBox/"), network)
-//  }
-
-//  for(i <- 6 until 12) {
-//    val contextDepth = 2 << i
-//    val model = new MeshSBModel(2, 4, 4, 4)
-//    val network = () => new MeshSBwithContext(model, 32, contextDepth)
-//    chisel3.Driver.execute(Array("-td", "PurlinResult/RTL/SwitchBox/"), network)
-//  }
-//
-//  val model = new MeshSBModel(2, 4, 4, 4)
-//  val network = () => new MeshSwitchBox(model, 16)
-
-//  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
-//    c => new MeshSBTester(c, model)
-//  }
 }
 
+/** A simple tester of a circuit-switched network by manually setting paths.
+ */
 class MeshSBTester(c: MeshSwitchBox, model: MeshSBModel) extends PeekPokeTester(c) {
   model.setPath(1, 1, (-1, 0), (Parameters.E, 0))
   model.setPath(2, 1, (Parameters.W, 0), (Parameters.E, 1))
@@ -73,6 +51,9 @@ class MeshSBTester(c: MeshSwitchBox, model: MeshSBModel) extends PeekPokeTester(
   }
 }
 
+
+/** A tester for testing circuit-switched networks with routing results.
+ */
 class RoutingResultTester(c: MeshSwitchBox, model: MeshSBModel, globalRouting: GlobalRouting)
   extends PeekPokeTester(c) {
 

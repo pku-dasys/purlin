@@ -20,51 +20,53 @@ object AlgorithmType extends Enumeration {
 }
 
 object RouterCompiler extends App {
-//  var i = 3
-//  while(i < 4) {
-//    testNoCAlgorithm(0.5 + 0.1 * i, 2, 4, 4)
-//
-//
-//    val outputFile0 = new FileWriter("SBTestingResults.txt")
-//    outputFile0.write("###########  " + i + "  ###########\n")
-//    outputFile0.close()
-//    var array = Array.ofDim[Double](2, 5, 10)
-//    for (i <- 0 until 10) {
-//      for (channelSize <- 2 until 4) {
-//        for (fs <- 4 until 9) {
-//          val ret = testSBAlgorithm(i, fs, channelSize)
-//          array(channelSize - 2)(fs - 4)(i) = ret
-//        }
-//      }
-//    }
-//
-//    val outputFile = new FileWriter("SBAvgResults.txt")
-//    for (channelSize <- 2 until 4) {
-//      var tmp = 999
-//      for (fs <- 4 until 9) {
-//        val successNum = array(channelSize - 2)(fs - 4).filter(i => i > 0).size
-//        val avgLetency = array(channelSize - 2)(fs - 4).filter(i => i > 0).sum / successNum
-//        if((fs == 4 + i + 1) && channelSize == 2){
-//          if(tmp < successNum){
-//            i += 1
-//          }
-//        }
-//        tmp = successNum
-//        outputFile.write("channel: " + channelSize + ", Fs: " + fs
-//          + ", successNum: " + successNum + ", avgLetency: " + avgLetency + "\n")
-//      }
-//    }
-//    outputFile.close()
-//  }
-  var flag = false
-  var i = 12
-  var count = 3
 
-  testNoCAlgorithm(0.08, 2, 4, 4)
+//  testNoCAlgorithm(0.05, 2, 4, 4)
+  compareNetworks()
 
-  /** A mesh network model.
-   *
-   * TODO: combine packet-switched and circuit-switched network models.
+  /** Compare packet-switched and circuit-switched  2-channel 4x4 networks.
+   * NOTE: "onceInjection" should be true when generate random tasks.
+   */
+  def compareNetworks(): Unit ={
+    var i = 3
+    while(i < 4) {
+      testNoCAlgorithm(0.5 + 0.1 * i, 2, 4, 4)
+
+
+      val outputFile0 = new FileWriter("SBTestingResults.txt")
+      outputFile0.write("###########  " + i + "  ###########\n")
+      outputFile0.close()
+      var array = Array.ofDim[Double](2, 5, 10)
+      for (i <- 0 until 10) {
+        for (channelSize <- 2 until 4) {
+          for (fs <- 4 until 9) {
+            val ret = testSBAlgorithm(i, fs, channelSize)
+            array(channelSize - 2)(fs - 4)(i) = ret
+          }
+        }
+      }
+
+      val outputFile = new FileWriter("SBAvgResults.txt")
+      for (channelSize <- 2 until 4) {
+        var tmp = 999
+        for (fs <- 4 until 9) {
+          val successNum = array(channelSize - 2)(fs - 4).filter(i => i > 0).size
+          val avgLetency = array(channelSize - 2)(fs - 4).filter(i => i > 0).sum / successNum
+          if((fs == 4 + i + 1) && channelSize == 2){
+            if(tmp < successNum){
+              i += 1
+            }
+          }
+          tmp = successNum
+          outputFile.write("channel: " + channelSize + ", Fs: " + fs
+            + ", successNum: " + successNum + ", avgLetency: " + avgLetency + "\n")
+        }
+      }
+      outputFile.close()
+    }
+  }
+
+  /** Explore a 2-channel 4x4 packet-switched network under different injection rate.
    */
   def exploreInjectionRate(): Unit = {
     for(i <- 1 until 20){
@@ -73,38 +75,40 @@ object RouterCompiler extends App {
     }
   }
 
+  /** Explore suitable parameters.
+   */
+  def exploreParameters(): Unit ={
+    var flag = false
+    var i = 2
+    var count = 3
+    while (i <= 12) {
+      flag = false
+      val injectionRate = 0.01 * i
+      Parameters.overlapPunishFactor = count * 0.05
+      testNoCAlgorithm(injectionRate, 2, 4, 4)
+      val fileName = "PurlinTest/" + injectionRate + "-" +
+        Parameters.xSize + "x" + Parameters.ySize + "-" + Parameters.channelSize + "-NoCTestingResults.txt"
+      val result = io.Source.fromFile(fileName).getLines()
+      val lines = result.toArray
+      flag = true
+      for (j <- 2 until 3) {
+        val res = lines(j).split(" ").filter(s => s != "")
+        val latency = res(res.size - 2).toDouble
+        if (latency < 24.497) {
+          println("########### count = " + count + " #########")
+          flag = true
+        }
+      }
+      if (flag || count >= 100) {
+        i += 1
+        count = 0
+      }else{
+        count += 1
+      }
 
+    }
+  }
 
-//    while (i <= 12) {
-//      flag = false
-//      val injectionRate = 0.01 * i
-//      Parameters.overlapPunishFactor = count * 0.05
-//      testNoCAlgorithm(injectionRate, 2, 4, 4)
-//      val fileName = "PurlinTest/" + injectionRate + "-" +
-//        Parameters.xSize + "x" + Parameters.ySize + "-" + Parameters.channelSize + "-NoCTestingResults.txt"
-//      val result = io.Source.fromFile(fileName).getLines()
-//      val lines = result.toArray
-//  //    val latencyXY = lines(2).split(" ").last.toDouble
-//      flag = true
-//      for (j <- 2 until 3) {
-//        val res = lines(j).split(" ").filter(s => s != "")
-//        val latency = res(res.size - 2).toDouble
-//        if (latency < 24.497) {
-//          println("########### count = " + count + " #########")
-//          flag = true
-//        }
-//      }
-////      if(lines(2).split(" ").last.toDouble <= lines(3).split(" ").last.toDouble){
-////        flag = false
-////      }
-//      if (flag || count >= 100) {
-//        i += 1
-//        count = 0
-//      }else{
-//        count += 1
-//      }
-//
-//    }
 
 
   def testSBAlgorithm(i: Int, Fs: Int, channelSize: Int): Double = {
@@ -174,7 +178,7 @@ object RouterCompiler extends App {
     Parameters.ySize = ySize
     Parameters.retrench()
     val model = new MeshNoCModel(Parameters.channelSize, Parameters.xSize, Parameters.ySize, 100.0)
-    val packetLength = 16
+    val packetLength = 8
     val packetNumForEachEndpoint = 64
     val onceInjection = false
         genRandomTask(injectionRate, model, packetLength, onceInjection, packetNumForEachEndpoint, false)
@@ -195,9 +199,6 @@ object RouterCompiler extends App {
     outputFile.close()
 
 
-    //            val algorithm = AlgorithmType.estimation
-    //            runTesterWithAlgorithm(model, network, algorithm, injectionRate)
-
 //        val underTestAlgorithm = Array(AlgorithmType.XY,
 //          AlgorithmType.minimalCongestion, AlgorithmType.pathFinder,
 //          AlgorithmType.estimation)
@@ -206,7 +207,6 @@ object RouterCompiler extends App {
               AlgorithmType.minimalCongestion, AlgorithmType.pathFinder,
               AlgorithmType.estimation, AlgorithmType.estimationRipUp)
 
-//    val underTestAlgorithm = Array(AlgorithmType.minimalDis)
 
     underTestAlgorithm.foreach(algorithm => algorithm match {
       case AlgorithmType.XY => runTester(network, algorithm, injectionRate, onceInjection)
@@ -223,15 +223,15 @@ object RouterCompiler extends App {
       case _ => None
     })
 
-    val move = "mv NoCTestingResults.txt PurlinTest/" + injectionRate + "-" +
+    val move = "cp NoCTestingResults.txt PurlinTest/" + injectionRate + "-" +
       Parameters.xSize + "x" + Parameters.ySize + "-" + Parameters.channelSize + "-NoCTestingResults.txt"
     val run = move !
 
-    val move2 = "mv globalRouting.json PurlinTest/" + injectionRate + "-" +
+    val move2 = "cp globalRouting.json PurlinTest/" + injectionRate + "-" +
       Parameters.xSize + "x" + Parameters.ySize + "-" + Parameters.channelSize + "-globalRouting.json"
-//    val run2 = move2 !
+    val run2 = move2 !
 
-    val move3 = "mv latencyDistribution.txt PurlinTest/" + injectionRate + "-" +
+    val move3 = "cp latencyDistribution.txt PurlinTest/" + injectionRate + "-" +
       Parameters.xSize + "x" + Parameters.ySize + "-" + Parameters.channelSize + "-latencyDistribution.txt"
     val run3 = move3 !
   }
@@ -496,12 +496,16 @@ object RouterCompiler extends App {
     GlobalRouting(messageBuffer.toList)
   }
 
+  /** Read the routing tasks or strategies from a JSON file.
+   **/
   def readJson(filename: String = "globalRouting.json") = {
     val in = Source.fromFile(filename).getLines().reduce(_ + _)
     val json = Json.parse(in)
     GlobalRouting.read(json)
   }
 
+  /** Write the routing tasks or strategies as a JSON file.
+   **/
   def writeJson(globalRouting: GlobalRouting, filename: String = "globalRouting.json"): Unit = {
     val json = GlobalRouting.write(globalRouting)
     val out = Json.prettyPrint(json)
