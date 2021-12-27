@@ -1,8 +1,8 @@
-package tetriski.Purlin.SwitchBox
+package tetriski.purlin.SwitchBox
 
 import chisel3.iotesters.PeekPokeTester
 import chisel3.{Bool, Bundle, UInt, _}
-import tetriski.Purlin.utils.{MeshSBModel, Parameters, SBModel}
+import tetriski.purlin.utils.{MeshSBModel, Parameters, SBModel}
 
 import scala.io.Source
 

@@ -1,4 +1,4 @@
-package tetriski.Purlin.NoC
+package tetriski.purlin.NoC
 
 import chisel3._
 import chisel3.util._

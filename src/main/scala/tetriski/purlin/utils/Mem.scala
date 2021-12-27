@@ -1,4 +1,4 @@
-package tetriski.Purlin.utils
+package tetriski.purlin.utils
 
 import chisel3._
 import chisel3.util._

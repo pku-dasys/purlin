@@ -1,12 +1,12 @@
-package tetriski.Purlin.NoC
+package tetriski.purlin.NoC
 
 import java.io.{File, FileWriter}
 
 import chisel3.iotesters.PeekPokeTester
 import chisel3.util._
 import chisel3.{Bundle, Input, Module, Vec, _}
-import tetriski.Purlin.utils.AlgorithmType.AlgorithmType
-import tetriski.Purlin.utils.{AlgorithmType, GlobalRouting, MultiChannelPacket, Parameters}
+import tetriski.purlin.utils.AlgorithmType.AlgorithmType
+import tetriski.purlin.utils.{AlgorithmType, GlobalRouting, MultiChannelPacket, Parameters}
 //import tetriski.pillars.Purlin.MultiChannelPacket
 
 import scala.collection.mutable.ArrayBuffer

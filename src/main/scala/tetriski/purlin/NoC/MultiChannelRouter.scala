@@ -1,8 +1,8 @@
-package tetriski.Purlin.NoC
+package tetriski.purlin.NoC
 
 import chisel3.{Bool, _}
-import tetriski.Purlin._
-import tetriski.Purlin.utils.{AnalyzedPacket, MultiChannelPacket, Parameters}
+import tetriski.purlin._
+import tetriski.purlin.utils.{AnalyzedPacket, MultiChannelPacket, Parameters}
 
 import scala.collection.mutable.ArrayBuffer
 

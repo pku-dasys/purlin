@@ -1,4 +1,4 @@
-package tetriski.Purlin.NoC
+package tetriski.purlin.NoC
 
 import chisel3.util.DecoupledIO
 import chisel3.{UInt, _}

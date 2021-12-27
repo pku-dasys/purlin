@@ -1,4 +1,4 @@
-package tetriski.Purlin.utils
+package tetriski.purlin.utils
 
 import scala.collection.mutable.ArrayBuffer
 

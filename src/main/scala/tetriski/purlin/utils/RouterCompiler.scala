@@ -1,13 +1,13 @@
-package tetriski.Purlin.utils
+package tetriski.purlin.utils
 
 import java.io.{File, FileWriter, PrintWriter}
 import java.util.Date
 
 import chisel3.iotesters
 import play.api.libs.json.{JsObject, JsValue, Json}
-import tetriski.Purlin.NoC.{MeshNoC, MeshNoCInjection, MultiChannelRouter}
-import tetriski.Purlin.SwitchBox.{MeshSwitchBox, RoutingResultTester}
-import tetriski.Purlin.utils.AlgorithmType.AlgorithmType
+import tetriski.purlin.NoC.{MeshNoC, MeshNoCInjection, MultiChannelRouter}
+import tetriski.purlin.SwitchBox.{MeshSwitchBox, RoutingResultTester}
+import tetriski.purlin.utils.AlgorithmType.AlgorithmType
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

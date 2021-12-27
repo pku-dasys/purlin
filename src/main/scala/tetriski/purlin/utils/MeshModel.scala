@@ -1,4 +1,4 @@
-package tetriski.Purlin.utils
+package tetriski.purlin.utils
 
 class MeshModel {
   var channelSize = 0

@@ -1,10 +1,10 @@
-package tetriski.Purlin.NoC
+package tetriski.purlin.NoC
 
 import chisel3.iotesters.PeekPokeTester
 import chisel3.util.{Cat, MuxLookup}
 import chisel3.{Bool, Bundle, Input, Module, Output, UInt, Vec, Wire, when, _}
-import tetriski.Purlin._
-import tetriski.Purlin.utils.{AnalyzedPacket, Coordinate, Packet, Parameters}
+import tetriski.purlin._
+import tetriski.purlin.utils.{AnalyzedPacket, Coordinate, Packet, Parameters}
 
 import scala.collection.mutable.ArrayBuffer
 

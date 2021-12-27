@@ -1,9 +1,9 @@
-package tetriski.Purlin.NoC
+package tetriski.purlin.NoC
 
 import chisel3.iotesters.PeekPokeTester
 import chisel3.util.log2Ceil
 import chisel3.{Bundle, Input, Module, Output, Vec, _}
-import tetriski.Purlin.utils.Parameters
+import tetriski.purlin.utils.Parameters
 
 class Arbiter(size: Int, numChannel: Int, grantResourceLimit: Int, grantWidth: Int) extends Module {
   val io = IO(new Bundle() {

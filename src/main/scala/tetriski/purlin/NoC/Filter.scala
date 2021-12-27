@@ -1,8 +1,8 @@
-package tetriski.Purlin.NoC
+package tetriski.purlin.NoC
 
 import chisel3._
 import chisel3.util.log2Ceil
-import tetriski.Purlin.utils.Parameters
+import tetriski.purlin.utils.Parameters
 
 class Filter[T <: Data](requestSize: Int, resourceLimit: Int, dataWidth: Int) extends Module{
   /** @example If resourceLimit = 2, it means there are 2 available resources,

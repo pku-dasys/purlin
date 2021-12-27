@@ -1,8 +1,8 @@
-package tetriski.Purlin.SwitchBox
+package tetriski.purlin.SwitchBox
 
 import chisel3.iotesters
 import chisel3.iotesters.PeekPokeTester
-import tetriski.Purlin.utils.{GlobalRouting, MeshSBModel, Parameters}
+import tetriski.purlin.utils.{GlobalRouting, MeshSBModel, Parameters}
 
 object testMeshSB extends App {
 

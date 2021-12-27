@@ -1,8 +1,8 @@
-package tetriski.Purlin.NoC
+package tetriski.purlin.NoC
 
 import chisel3.util._
 import chisel3.{Bundle, Input, Module, Vec, _}
-import tetriski.Purlin.utils.{Coordinate, Parameters}
+import tetriski.purlin.utils.{Coordinate, Parameters}
 
 import scala.collection.mutable.ArrayBuffer
 

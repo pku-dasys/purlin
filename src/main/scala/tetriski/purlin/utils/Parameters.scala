@@ -1,4 +1,4 @@
-package tetriski.Purlin.utils
+package tetriski.purlin.utils
 
 import chisel3.util.log2Ceil
 import chisel3.{Bool, Bundle, UInt, _}

@@ -1,8 +1,8 @@
-package tetriski.Purlin.NoC
+package tetriski.purlin.NoC
 
 import chisel3.iotesters.PeekPokeTester
 import chisel3.{Bundle, Input, Output, _}
-import tetriski.Purlin.utils.{AnalyzedPacket, MultiChannelPacket, Packet, Parameters}
+import tetriski.purlin.utils.{AnalyzedPacket, MultiChannelPacket, Packet, Parameters}
 
 class Packer(numIn: Int, numOut: Int, betterFrequency: Boolean = false) extends Module {
   val io = IO(new Bundle() {
