@@ -3,7 +3,7 @@ package tetriski.purlin.utils
 import chisel3.util.log2Ceil
 import chisel3.{Bool, Bundle, UInt, _}
 
-/** Global parameters
+/** Global parameters.
  */
 object Parameters {
   var xSize = 4
