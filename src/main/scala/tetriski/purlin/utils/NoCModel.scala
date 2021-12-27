@@ -2,6 +2,11 @@ package tetriski.purlin.utils
 
 import scala.collection.mutable.ArrayBuffer
 
+
+/** A network model of packet-switched on-chip networks.
+ * TODO: introduce more topologies like fat-tree and ring
+ * TODO: realize a faster simulator to help improve algorithms
+ */
 class MeshNoCModel extends MeshModel {
 
   var maxAdjacency = 0
@@ -13,6 +18,8 @@ class MeshNoCModel extends MeshModel {
 
   var allocatedMessages = Map[Int, Message]()
 
+  /** Estimate the average latency of messages allocated in this network model.
+   */
   def estimateAll(): Double = {
     var latency = 0.0
     for (item <- allocatedMessages) {
@@ -23,6 +30,14 @@ class MeshNoCModel extends MeshModel {
     latency / allocatedMessages.size.toDouble
   }
 
+  /** Estimate the latency of a message if it is allocated in this network model.
+   *
+   * @param message         the message to be allocated
+   * @param messageIndex    the index of the message
+   * @param allocated       indicate whether the message has been allocated
+   * @param inputStrategies the routing path of the message
+   * @return the estimated latency
+   */
   def estimate(message: Message, messageIndex: Int = -1, allocated: Boolean = false,
                inputStrategies: List[RoutingStrategy] = List()): Double = {
     val begin = message.injectionCycle.getOrElse(0)
@@ -43,7 +58,7 @@ class MeshNoCModel extends MeshModel {
       val y = strategy.routerY.getOrElse(-1)
       val direction = strategy.dstDirection
 
-      var congestionLevel = getCongestionLevel(x, y, direction, message)
+      var congestionLevel = getCongestionLevel(x, y, direction, message, i)
       if (allocated) {
         congestionLevel -= 1
       }
@@ -63,21 +78,21 @@ class MeshNoCModel extends MeshModel {
               val cBegin = congestionMessage.injectionCycle.getOrElse(0) + j
               val cEnd = cBegin + congestionMessage.packetLength.getOrElse(0)
               val overlap = ((lBegin until lEnd).toSet & (cBegin until cEnd).toSet)
-              for(index <- overlap){
+              for (index <- overlap) {
                 overlapNum(index - lBegin) += 1
               }
             }
           }
         }
         val overhead = overlapNum.map(i =>
-          if(i >= channelSize){
-          i - channelSize + 1
-        }else{
-          0
-        }).sum
+          if (i >= channelSize) {
+            i - channelSize + 1
+          } else {
+            0
+          }).sum
 
-//        val overhead = overlapNum.sum
-        congestionOverhead += overhead.toDouble *  Parameters.overlapPunishFactor
+        //        val overhead = overlapNum.sum
+        congestionOverhead += overhead.toDouble * Parameters.overlapPunishFactor
       }
 
     }
@@ -85,30 +100,56 @@ class MeshNoCModel extends MeshModel {
     congestionOverhead + routingHops.toDouble
   }
 
+
+  /** Allocate a message in this network model.
+   *
+   * @param message      the message to be allocated
+   * @param messageIndex the index of the message
+   */
   def allocateMessage(message: Message, messageIndex: Int): Unit = {
     allocatedMessages += messageIndex -> message
     val injectionCycle = message.injectionCycle.getOrElse(0)
     val packetLength = message.packetLength.getOrElse(0)
     val strategies = message.routingStrategy.getOrElse(List())
+    var hopIndex = 0
     for (s <- strategies) {
       setPath(s.routerX.getOrElse(-1), s.routerY.getOrElse(-1),
-        s.srcDirection.getOrElse(-1), s.dstDirection, messageIndex, injectionCycle, packetLength)
+        s.srcDirection.getOrElse(-1), s.dstDirection, messageIndex, injectionCycle + hopIndex, packetLength)
+      hopIndex += 1
     }
   }
 
+  /** Remove a message in this network model.
+   *
+   * @param message      the message to be allocated
+   * @param messageIndex the index of the message
+   */
   def ripUP(message: Message, messageIndex: Int): Unit = {
     allocatedMessages -= messageIndex
     val injectionCycle = message.injectionCycle.getOrElse(0)
     val packetLength = message.packetLength.getOrElse(0)
     val strategies = message.routingStrategy.getOrElse(List())
+    var hopIndex = 0
     for (s <- strategies) {
       ripUp(s.routerX.getOrElse(-1), s.routerY.getOrElse(-1),
-        s.srcDirection.getOrElse(-1), s.dstDirection, messageIndex, injectionCycle, packetLength)
+        s.srcDirection.getOrElse(-1), s.dstDirection, messageIndex, injectionCycle + hopIndex, packetLength)
+      hopIndex += 1
     }
   }
 
-  def getCongestionLevel(x: Int, y: Int, direction: Int, message: Message): Int = {
-    val begin = message.injectionCycle.getOrElse(0)
+  /** Get the congestion level to evaluate possible congestion when allocating the #hopIndex hop of a message
+   * from router (x, y) to "direction" router.
+   * Assuming no congestion happens, the congestion level is the average channel overuse for
+   * the #hopIndex hop during the lifetime.
+   *
+   * @param x         the x index
+   * @param y         the y index
+   * @param direction the direction of next router
+   * @param message   the message to be allocated
+   * @param hopIndex  the hop index of the message
+   */
+  def getCongestionLevel(x: Int, y: Int, direction: Int, message: Message, hopIndex: Int = 0): Int = {
+    val begin = message.injectionCycle.getOrElse(0) + hopIndex
     val packetLength = message.packetLength.getOrElse(0)
     val end = packetLength + begin
     val congestionLevel = (begin until end).map(c => getPresentlyUsed(x, y, direction, c)).reduce(_ + _) / packetLength
@@ -119,39 +160,87 @@ class MeshNoCModel extends MeshModel {
     }
   }
 
-  def getPresentlyUsed(x: Int, y: Int, direction: Int, injectionCycle: Int): Int = {
+  /** Get presently used channels from router (x, y) to "direction" router at a certain cycle,
+   * assuming no congestion happens.
+   *
+   * @param x         the x index
+   * @param y         the y index
+   * @param direction the direction of next router in utils.Parameters (e.g. E = 0)
+   * @param cycle     the cycle after the simulation start
+   */
+  def getPresentlyUsed(x: Int, y: Int, direction: Int, cycle: Int): Int = {
     val router = routerModelMap((x, y))
     val congestionMap = router.directionCongestionMap(direction)
-    val congestion = if(congestionMap.contains(injectionCycle)) {
-      congestionMap(injectionCycle)
-    }else {
+    val congestion = if (congestionMap.contains(cycle)) {
+      congestionMap(cycle)
+    } else {
       0.0
     }
     Math.round(congestion * channelSize).toInt
   }
 
+
+  /** Go to next router from the "dst" direction of current router.
+   *
+   * @param router the current router
+   * @param dst    the direction connected to next router
+   * @return (nextRouter, direction from this router)
+   */
   def gotoNextRouter(router: NoCRouterModel, dst: Int): (NoCRouterModel, Int) = {
     val sink = topologyDirectionMap((router, dst))
     val sinkRouter = sink._1
-    val sinkPort = sink._2
-    (sinkRouter, sinkPort)
+    val sinkDirection = sink._2
+    (sinkRouter, sinkDirection)
   }
 
+
+  /** Clear all routers.
+   */
   def clear: Unit = {
     routerModelMap.foreach(p => p._2.clear)
   }
 
 
-  def setPath(x: Int, y: Int, src: Int, dst: Int, msgIndex: Int, injectionCycle: Int, packetLength: Int): Unit = {
+  /** Set a hop of a message (packet) in router (x,y) at from "src" direction to "dst" direction at "cycle" to ("cycle" + "packetLength").
+   *
+   * @param x            the x index
+   * @param y            the y index
+   * @param src          the source direction
+   * @param dst          the destination direction
+   * @param msgIndex     the index of the message
+   * @param cycle        the cycle when the first flit of the packet go through this router
+   * @param packetLength the length of the packet
+   *
+   */
+  def setPath(x: Int, y: Int, src: Int, dst: Int, msgIndex: Int, cycle: Int, packetLength: Int): Unit = {
     val NoCRouterModel = routerModelMap((x, y))
-    NoCRouterModel.setPath(src, dst, msgIndex, injectionCycle, packetLength)
+    NoCRouterModel.setPath(src, dst, msgIndex, cycle, packetLength)
   }
 
-  def ripUp(x: Int, y: Int, src: Int, dst: Int, msgIndex: Int, injectionCycle: Int, packetLength: Int): Unit = {
+  /** Remove a hop of a message (packet) in router (x,y) at from "src" direction to "dst" direction at "cycle" to ("cycle" + "packetLength").
+   *
+   * @param x            the x index
+   * @param y            the y index
+   * @param src          the source direction
+   * @param dst          the destination direction
+   * @param msgIndex     the index of the message
+   * @param cycle        the cycle when the first flit of the packet go through this router
+   * @param packetLength the length of the packet
+   *
+   */
+  def ripUp(x: Int, y: Int, src: Int, dst: Int, msgIndex: Int, cycle: Int, packetLength: Int): Unit = {
     val NoCRouterModel = routerModelMap((x, y))
-    NoCRouterModel.ripUp(src, dst, msgIndex, injectionCycle, packetLength)
+    NoCRouterModel.ripUp(src, dst, msgIndex, cycle, packetLength)
   }
 
+  /** Create this packet-switched network model.
+   *
+   * @param channelSize     the number of channels
+   * @param xSize           the x size of this network
+   * @param ySize           the y size of this network
+   * @param congestionLimit the maximum channel usage proportion in spite of the real injection cycle
+   *
+   */
   def this(channelSize: Int, xSize: Int, ySize: Int, congestionLimit: Double) {
     this()
     this.channelSize = channelSize
@@ -161,6 +250,10 @@ class MeshNoCModel extends MeshModel {
     init()
   }
 
+  /** Initialize this network model.
+   *
+   * TODO: introduce more topologies like fat-tree and ring
+   */
   def init(): Unit = {
     for (x <- 0 until xSize) {
       for (y <- 0 until ySize) {
@@ -195,6 +288,9 @@ class MeshNoCModel extends MeshModel {
   }
 }
 
+
+/** The model of a packet-switched router.
+ */
 class NoCRouterModel {
   var x = 0
   var y = 0
@@ -210,6 +306,8 @@ class NoCRouterModel {
   val routingInfo = new ArrayBuffer[(Int, Int, Int)]()
 
 
+  /** Clear this router model.
+   */
   def clear: Unit = {
     directionCongestionMap = scala.collection.mutable.Map[Int, scala.collection.mutable.Map[Int, Double]]()
     for (direction <- adjacency) {
@@ -218,22 +316,31 @@ class NoCRouterModel {
     routingInfo.clear()
   }
 
-  def findUnimpededDirection(srcDirection: Int, injectionCycle: Int, congestionRate: Double = congestionLimit):
+  /** Find feasible directions for next hop.
+   * If "deadlockPrevented" is true, the odd-even turn will be applied.
+   *
+   * @param srcDirection   the source direction of current hop
+   * @param cycle          the cycle of current hop
+   * @param congestionRate the maximum channel usage proportion in spite of the real injection cycle
+   */
+  def findUnimpededDirection(srcDirection: Int, cycle: Int, congestionRate: Double = congestionLimit):
   scala.collection.mutable.Map[Int, scala.collection.mutable.Map[Int, Double]] = {
     var ret = directionCongestionMap.filter(i => i._1 != srcDirection)
-      .filter(i => {if (i._2.contains(injectionCycle)) {
-        i._2(injectionCycle)
-      } else {
-        0.0
-      }} < congestionRate)
-    if(deadlockPrevented){
+      .filter(i => {
+        if (i._2.contains(cycle)) {
+          i._2(cycle)
+        } else {
+          0.0
+        }
+      } < congestionRate)
+    if (deadlockPrevented) {
       //odd-even model
-      if(y % 2 == 1){
-        if(srcDirection == Parameters.S || srcDirection == Parameters.N){
+      if (y % 2 == 1) {
+        if (srcDirection == Parameters.S || srcDirection == Parameters.N) {
           ret = ret.filter(item => item._1 != Parameters.W)
         }
-      }else{
-        if(srcDirection == Parameters.E){
+      } else {
+        if (srcDirection == Parameters.E) {
           ret = ret.filter(item => item._1 == Parameters.E)
         }
       }
@@ -242,8 +349,24 @@ class NoCRouterModel {
   }
 
 
+  /** Find the port index of a direction.
+   *
+   * @param direction the direction in utils.Parameters (e.g. E = 0)
+   * @return the port index
+   */
   def findPortIndex(direction: Int) = adjacency.indexOf(direction)
 
+
+  /** Initialize this router model.
+   *
+   * @param x                 the x index
+   * @param y                 the y index
+   * @param channelSize       the channel number
+   * @param xSize             the x size of the network
+   * @param ySize             the y size of the network
+   * @param congestionLimit   the maximum channel usage proportion in spite of the real injection cycle
+   * @param deadlockPrevented indicate whether applying the odd-even turn to prevent dead lock
+   */
   def this(x: Int, y: Int, channelSize: Int, xSize: Int = Parameters.xSize,
            ySize: Int = Parameters.ySize, congestionLimit: Double, deadlockPrevented: Boolean = false) = {
     this()
@@ -275,8 +398,17 @@ class NoCRouterModel {
     this.channelSize = channelSize
   }
 
-  def setPath(srcDirection: Int, dstDirection: Int, msgIndex: Int, injectionCycle: Int, packetLength: Int) = {
-    for (c <- injectionCycle until injectionCycle + packetLength) {
+  /** Set a hop of a message (packet) in this router at from "src" direction to "dst" direction at "cycle" to ("cycle" + "packetLength").
+   *
+   * @param srcDirection the source direction
+   * @param dstDirection the destination direction
+   * @param msgIndex     the index of the message
+   * @param cycle        the cycle when the first flit of the packet go through this router
+   * @param packetLength the length of the packet
+   *
+   */
+  def setPath(srcDirection: Int, dstDirection: Int, msgIndex: Int, cycle: Int, packetLength: Int) = {
+    for (c <- cycle until cycle + packetLength) {
       if (directionCongestionMap(dstDirection).contains(c)) {
         directionCongestionMap(dstDirection)(c) = 1.0 / channelSize + directionCongestionMap(dstDirection)(c)
         if (directionCongestionMap(dstDirection)(c) > congestionLimit) {
@@ -290,9 +422,18 @@ class NoCRouterModel {
 
   }
 
-  def ripUp(srcDirection: Int, dstDirection: Int, msgIndex: Int, injectionCycle: Int, packetLength: Int): Unit = {
+  /** Remove a hop of a message (packet) in this router at from "src" direction to "dst" direction at "cycle" to ("cycle" + "packetLength").
+   *
+   * @param srcDirection the source direction
+   * @param dstDirection the destination direction
+   * @param msgIndex     the index of the message
+   * @param cycle        the cycle when the first flit of the packet go through this router
+   * @param packetLength the length of the packet
+   *
+   */
+  def ripUp(srcDirection: Int, dstDirection: Int, msgIndex: Int, cycle: Int, packetLength: Int): Unit = {
     if (routingInfo.contains((srcDirection, dstDirection, msgIndex))) {
-      for (c <- injectionCycle until injectionCycle + packetLength) {
+      for (c <- cycle until cycle + packetLength) {
         directionCongestionMap(dstDirection)(c) = -1.0 / channelSize + directionCongestionMap(dstDirection)(c)
       }
       routingInfo.remove(routingInfo.indexOf((srcDirection, dstDirection, msgIndex)))

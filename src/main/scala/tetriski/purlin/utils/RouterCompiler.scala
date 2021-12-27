@@ -60,7 +60,7 @@ object RouterCompiler extends App {
   var i = 12
   var count = 3
 
-  testNoCAlgorithm(0.1, 2, 4, 4)
+  testNoCAlgorithm(0.08, 2, 4, 4)
 //  for(i <- 1 until 20){
 //    val injectionRate = 0.01 * i
 //    testNoCAlgorithm(injectionRate, 2, 4, 4)
@@ -194,11 +194,11 @@ object RouterCompiler extends App {
 //          AlgorithmType.minimalCongestion, AlgorithmType.pathFinder,
 //          AlgorithmType.estimation)
 
-//    val underTestAlgorithm = Array(AlgorithmType.XY, AlgorithmType.minimalDis,
-    //          AlgorithmType.minimalCongestion, AlgorithmType.pathFinder,
-    //          AlgorithmType.estimation, AlgorithmType.estimationRipUp)
+    val underTestAlgorithm = Array(AlgorithmType.XY, AlgorithmType.minimalDis,
+              AlgorithmType.minimalCongestion, AlgorithmType.pathFinder,
+              AlgorithmType.estimation, AlgorithmType.estimationRipUp)
 
-    val underTestAlgorithm = Array(AlgorithmType.minimalDis)
+//    val underTestAlgorithm = Array(AlgorithmType.minimalDis)
 
     underTestAlgorithm.foreach(algorithm => algorithm match {
       case AlgorithmType.XY => runTester(network, algorithm, injectionRate, onceInjection)
@@ -251,14 +251,15 @@ object RouterCompiler extends App {
       val x = next.routerX.getOrElse(-1)
       val y = next.routerY.getOrElse(-1)
       val direction = next.dstDirection
+      val hopNum = strategies.size
       val towards = (x, y, direction)
       priority.put(newStrategies, {
         algorithm match {
           case AlgorithmType.pathFinder =>
-            -(Math.abs(priority(strategies)) + 1 +
+            -(hopNum + 1 +
               Parameters.congestionFactor * (1 + history(towards))
-                * model.getCongestionLevel(x, y, direction, message))
-          case AlgorithmType.minimalDis => -(Math.abs(priority(strategies)) + 1)
+                * model.getCongestionLevel(x, y, direction, message, hopNum))
+          case AlgorithmType.minimalDis => -(hopNum + 1)
           case AlgorithmType.minimalCongestion => -(2 * Parameters.congestionFactor *
             model.getCongestionLevel(x, y, direction, message)
             + Math.abs(priority(strategies)) + 1)
@@ -311,7 +312,7 @@ object RouterCompiler extends App {
         val currentRouter = current._1
         val currentPort = current._2
 
-        val initDst = currentRouter.findUnimpededDirection(currentPort, message.injectionCycle.getOrElse(0))
+        val initDst = currentRouter.findUnimpededDirection(currentPort, message.injectionCycle.getOrElse(0) + strategies.size)
         for (dst <- initDst) {
           if (dst._1 == Parameters.TILE) {
             if (currentRouter == end) {
@@ -324,10 +325,6 @@ object RouterCompiler extends App {
               println("Find path from: (" + source._1
                 + ", " + source._2 + ") to (" + sink._1 + ", " + sink._2 + ").")
               model.allocateMessage(newMessage, messageIndex)
-              //              for (s <- (strategies ::: List(strategy))) {
-              //                model.setPath(s.routerX.getOrElse(-1), s.routerY.getOrElse(-1),
-              //                  s.srcDirection.getOrElse(-1), s.dstDirection, messageIndex)
-              //              }
             }
           } else {
             val next = model.gotoNextRouter(currentRouter, dst._1)
