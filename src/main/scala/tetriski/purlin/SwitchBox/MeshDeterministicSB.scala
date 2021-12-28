@@ -6,6 +6,67 @@ import tetriski.purlin.utils.{MeshSBModel, Parameters, SBModel}
 
 import scala.io.Source
 
+/** A on-chip network module based on look up memory.
+ * This is an experimental architecture, used in another project.
+ * It likes a packet-switched network based on Header-Body format packets.
+ * But it is heavily dependent on algorithms (not in Purlin).
+ */
+class DeterministicSB(model: MeshSBModel, w: Int, configIO: SBConfigIO) extends Module {
+  val channelSize = model.channelSize
+  assert(channelSize == 1)
+  val xSize = model.xSize
+  val ySize = model.ySize
+  val Fs = model.Fs
+  val configSize = model.configSize
+  val maxAdjacency = model.maxAdjacency
+
+  override def desiredName = "DeterministicSwitchBoxNetwork_" + channelSize + "_" + xSize + "_" + ySize + "_Fs." + Fs
+
+  val io = IO(new Bundle {
+    val en = Input(Bool())
+
+    val inputFromTiles = Input(Vec(ySize, Vec(xSize, Vec(channelSize, UInt(w.W)))))
+    val outputToTiles = Output(Vec(ySize, Vec(xSize, Vec(channelSize, UInt(w.W)))))
+
+  })
+
+  var routerMap = Map[(Int, Int), SBController]()
+  for (x <- 0 until xSize) {
+    for (y <- 0 until ySize) {
+      val routerModel = model.routerModelMap(x, y)
+
+      val controller = Module(new SBController(w, routerModel.adjacency.size,
+        routerModel, configIO.routingTableMap((x, y))))
+      routerMap += (y, x) -> controller
+      controller.io.en <> io.en
+
+      for (c <- 0 until channelSize) {
+        controller.io.inputs.last <> io.inputFromTiles(y)(x)(c)
+        io.outputToTiles(y)(x)(c) <> controller.io.outputs.last
+      }
+    }
+  }
+
+  val topologyMap = model.topologyMap
+
+  for (pair <- topologyMap) {
+    val dstModel = pair._2._1
+    val dstRouter = routerMap(dstModel.y, dstModel.x)
+    val dstPortIndex = pair._2._2
+
+    val srcModel = pair._1._1
+    val srcRouter = routerMap(srcModel.y, srcModel.x)
+    val srcPortIndex = pair._1._2
+
+    for (c <- 0 until channelSize) {
+      dstRouter.io.inputs(dstPortIndex) <> srcRouter.io.outputs(srcPortIndex)
+    }
+  }
+}
+
+
+/** Local parameters.
+ */
 object LocalParam {
   val NOP = 0
   val E = 4
@@ -174,60 +235,6 @@ class SBConfigIO {
   }
 }
 
-
-
-class DeterministicSB(model: MeshSBModel, w: Int, configIO: SBConfigIO) extends Module {
-  val channelSize = model.channelSize
-  assert(channelSize == 1)
-  val xSize = model.xSize
-  val ySize = model.ySize
-  val Fs = model.Fs
-  val configSize = model.configSize
-  val maxAdjacency = model.maxAdjacency
-
-  override def desiredName = "DeterministicSwitchBoxNetwork_" + channelSize + "_" + xSize + "_" + ySize + "_Fs." + Fs
-
-  val io = IO(new Bundle {
-    val en = Input(Bool())
-
-    val inputFromTiles = Input(Vec(ySize, Vec(xSize, Vec(channelSize, UInt(w.W)))))
-    val outputToTiles = Output(Vec(ySize, Vec(xSize, Vec(channelSize, UInt(w.W)))))
-
-  })
-
-  var routerMap = Map[(Int, Int), SBController]()
-  for (x <- 0 until xSize) {
-    for (y <- 0 until ySize) {
-      val routerModel = model.routerModelMap(x, y)
-
-      val controller = Module(new SBController(w, routerModel.adjacency.size,
-        routerModel, configIO.routingTableMap((x, y))))
-      routerMap += (y, x) -> controller
-      controller.io.en <> io.en
-
-      for (c <- 0 until channelSize) {
-        controller.io.inputs.last <> io.inputFromTiles(y)(x)(c)
-        io.outputToTiles(y)(x)(c) <> controller.io.outputs.last
-      }
-    }
-  }
-
-  val topologyMap = model.topologyMap
-
-  for (pair <- topologyMap) {
-    val dstModel = pair._2._1
-    val dstRouter = routerMap(dstModel.y, dstModel.x)
-    val dstPortIndex = pair._2._2
-
-    val srcModel = pair._1._1
-    val srcRouter = routerMap(srcModel.y, srcModel.x)
-    val srcPortIndex = pair._1._2
-
-    for (c <- 0 until channelSize) {
-      dstRouter.io.inputs(dstPortIndex) <> srcRouter.io.outputs(srcPortIndex)
-    }
-  }
-}
 
 object testMeshDSB extends App {
   val model = new MeshSBModel(1, 3, 3, 4)

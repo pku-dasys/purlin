@@ -21,80 +21,98 @@ object AlgorithmType extends Enumeration {
 
 object RouterCompiler extends App {
 
-//  testNoCAlgorithm(0.05, 2, 4, 4)
-  compareNetworks()
+//  compareNetworks()
+//    exploreInjectionRate()
+    exploreParameters()
 
-  /** Compare packet-switched and circuit-switched  2-channel 4x4 networks.
+
+  /** Compare packet-switched and circuit-switched 2-channel 4x4 networks.
    * NOTE: "onceInjection" should be true when generate random tasks.
    */
-  def compareNetworks(): Unit ={
-    var i = 3
-    while(i < 4) {
-      testNoCAlgorithm(0.5 + 0.1 * i, 2, 4, 4)
+  def compareNetworks(): Unit = {
+    var array = Array.ofDim[Double](2, 5, 5)
+    val packetLength = 8
+    val packetNumForEachEndpoint = 64
+    val onceInjection = true
+    val model = new MeshModel(2, 4, 4)
+    val underTestAlgorithm = Array(AlgorithmType.XY)
 
-
-      val outputFile0 = new FileWriter("SBTestingResults.txt")
-      outputFile0.write("###########  " + i + "  ###########\n")
-      outputFile0.close()
-      var array = Array.ofDim[Double](2, 5, 10)
-      for (i <- 0 until 10) {
-        for (channelSize <- 2 until 4) {
-          for (fs <- 4 until 9) {
-            val ret = testSBAlgorithm(i, fs, channelSize)
-            array(channelSize - 2)(fs - 4)(i) = ret
-          }
+    for (i <- 0 until 5) {
+      genRandomTask(0.5 + 0.1 * i, model, packetLength, onceInjection, packetNumForEachEndpoint, false)
+      testNoCAlgorithm(0.5 + 0.1 * i, 2, 4, 4,
+        packetLength, onceInjection, underTestAlgorithm, false)
+      for (channelSize <- 2 until 4) {
+        for (fs <- 4 until 9) {
+          val ret = testSBAlgorithm(i, fs, channelSize)
+          array(channelSize - 2)(fs - 4)(i) = ret
         }
       }
-
-      val outputFile = new FileWriter("SBAvgResults.txt")
+    }
+    for (i <- 0 until 5) {
+      val outputFile = new FileWriter("SBAvgResults.txt", true)
       for (channelSize <- 2 until 4) {
-        var tmp = 999
         for (fs <- 4 until 9) {
           val successNum = array(channelSize - 2)(fs - 4).filter(i => i > 0).size
           val avgLetency = array(channelSize - 2)(fs - 4).filter(i => i > 0).sum / successNum
-          if((fs == 4 + i + 1) && channelSize == 2){
-            if(tmp < successNum){
-              i += 1
-            }
-          }
-          tmp = successNum
-          outputFile.write("channel: " + channelSize + ", Fs: " + fs
+          outputFile.write("injectionRate: " + (0.5 + 0.1 * i) + ", channel: " + channelSize + ", Fs: " + fs
             + ", successNum: " + successNum + ", avgLetency: " + avgLetency + "\n")
         }
       }
       outputFile.close()
     }
+
+
   }
 
-  /** Explore a 2-channel 4x4 packet-switched network under different injection rate.
+  /** Explore a 2-channel 4x4 packet-switched distributed routing network under different injection rate.
    */
   def exploreInjectionRate(): Unit = {
-    for(i <- 1 until 20){
+    val packetLength = 3
+    val packetNumForEachEndpoint = 64
+    val onceInjection = false
+    val model = new MeshModel(2, 4, 4)
+    val underTestAlgorithm = Array(AlgorithmType.XY)
+
+    for (i <- 1 until 20) {
       val injectionRate = 0.01 * i
-      testNoCAlgorithm(injectionRate, 2, 4, 4)
+      genRandomTask(injectionRate, model, packetLength, onceInjection, packetNumForEachEndpoint, true)
+      testNoCAlgorithm(injectionRate, 2, 4, 4, packetLength,
+        onceInjection, underTestAlgorithm, false)
     }
   }
 
-  /** Explore suitable parameters.
+  /** Explore suitable parameters and injection rate where other algorithms perform better than XY-routing.
    */
-  def exploreParameters(): Unit ={
+  def exploreParameters(): Unit = {
     var flag = false
     var i = 2
     var count = 3
+
+    val underTestAlgorithm = Array(AlgorithmType.XY,
+      AlgorithmType.minimalCongestion, AlgorithmType.pathFinder,
+      AlgorithmType.estimation)
+    val packetLength = 8
+    val packetNumForEachEndpoint = 64
+    val onceInjection = false
+    val model = new MeshModel(Parameters.channelSize, Parameters.xSize, Parameters.ySize)
+
     while (i <= 12) {
       flag = false
       val injectionRate = 0.01 * i
-      Parameters.overlapPunishFactor = count * 0.05
-      testNoCAlgorithm(injectionRate, 2, 4, 4)
+      Parameters.congestionFactor = count * 0.05
+      genRandomTask(injectionRate, model, packetLength, onceInjection, packetNumForEachEndpoint, false)
+      testNoCAlgorithm(injectionRate, 2, 4, 4, packetLength, onceInjection, underTestAlgorithm)
       val fileName = "PurlinTest/" + injectionRate + "-" +
         Parameters.xSize + "x" + Parameters.ySize + "-" + Parameters.channelSize + "-NoCTestingResults.txt"
       val result = io.Source.fromFile(fileName).getLines()
       val lines = result.toArray
-      flag = true
-      for (j <- 2 until 3) {
+      flag = false
+      val res = lines(2).split(" ").filter(s => s != "")
+      val xyLatency = res(res.size - 2).toDouble
+      for (j <- 3 until 6) {
         val res = lines(j).split(" ").filter(s => s != "")
         val latency = res(res.size - 2).toDouble
-        if (latency < 24.497) {
+        if (latency < xyLatency) {
           println("########### count = " + count + " #########")
           flag = true
         }
@@ -102,13 +120,12 @@ object RouterCompiler extends App {
       if (flag || count >= 100) {
         i += 1
         count = 0
-      }else{
+      } else {
         count += 1
       }
 
     }
   }
-
 
 
   def testSBAlgorithm(i: Int, Fs: Int, channelSize: Int): Double = {
@@ -137,14 +154,19 @@ object RouterCompiler extends App {
     outputFile.close()
 
     val network = () => new MeshSwitchBox(model, 16)
-//    iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
-//      c => new RoutingResultTester(c, model, result)
-//    }
+    if(avgLatency == -1){
+      return avgLatency
+    }
+    iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
+      c => new RoutingResultTester(c, model, result)
+    }
 
     avgLatency
   }
 
-  def testNoCAlgorithm(injectionRate: Double, channelSize: Int, xSize: Int, ySize: Int): Unit = {
+  def testNoCAlgorithm(injectionRate: Double, channelSize: Int, xSize: Int, ySize: Int,
+                       packetLength: Int, onceInjection: Boolean,
+                       underTestAlgorithm: Array[AlgorithmType], sourceRouting: Boolean = true): Unit = {
     def runTester(network: () => MeshNoC, algorithm: AlgorithmType, injectionRate: Double,
                   onceInjection: Boolean): Unit = {
       val outputFile = new FileWriter("NoCTestingResults.txt", true)
@@ -177,15 +199,10 @@ object RouterCompiler extends App {
     Parameters.xSize = xSize
     Parameters.ySize = ySize
     Parameters.retrench()
+    if (!sourceRouting) {
+      Parameters.abandonSourceRouting()
+    }
     val model = new MeshNoCModel(Parameters.channelSize, Parameters.xSize, Parameters.ySize, 100.0)
-    val packetLength = 8
-    val packetNumForEachEndpoint = 64
-    val onceInjection = false
-        genRandomTask(injectionRate, model, packetLength, onceInjection, packetNumForEachEndpoint, false)
-
-//    genRandomTask(injectionRate, model, packetLength, onceInjection)
-
-
 
     val network = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x, false), () => new MultiChannelPacket)
 
@@ -197,16 +214,6 @@ object RouterCompiler extends App {
       .format("Algorithm", "Time", "Estimate", "Expected", "Received", "Minimal", "Average", "Network", "Packet"))
     outputFile.flush()
     outputFile.close()
-
-
-//        val underTestAlgorithm = Array(AlgorithmType.XY,
-//          AlgorithmType.minimalCongestion, AlgorithmType.pathFinder,
-//          AlgorithmType.estimation)
-
-    val underTestAlgorithm = Array(AlgorithmType.XY, AlgorithmType.minimalDis,
-              AlgorithmType.minimalCongestion, AlgorithmType.pathFinder,
-              AlgorithmType.estimation, AlgorithmType.estimationRipUp)
-
 
     underTestAlgorithm.foreach(algorithm => algorithm match {
       case AlgorithmType.XY => runTester(network, algorithm, injectionRate, onceInjection)
@@ -497,7 +504,7 @@ object RouterCompiler extends App {
   }
 
   /** Read the routing tasks or strategies from a JSON file.
-   **/
+   * */
   def readJson(filename: String = "globalRouting.json") = {
     val in = Source.fromFile(filename).getLines().reduce(_ + _)
     val json = Json.parse(in)
@@ -505,7 +512,7 @@ object RouterCompiler extends App {
   }
 
   /** Write the routing tasks or strategies as a JSON file.
-   **/
+   * */
   def writeJson(globalRouting: GlobalRouting, filename: String = "globalRouting.json"): Unit = {
     val json = GlobalRouting.write(globalRouting)
     val out = Json.prettyPrint(json)
@@ -522,7 +529,7 @@ object RouterCompiler extends App {
    * @param onceInjection  indicating whether only inject packets at cycle 0
    * @param packetNum      number of packets injected to each router, only used when onceInjection == false
    * @param randomPLength  indicating whether generating packets with different length
-   **/
+   * */
   def genRandomTask(injectionRatio: Double, model: MeshModel, packetLength: Int = 0,
                     onceInjection: Boolean = true, packetNum: Int = 0, randomPLength: Boolean = false) = {
     var messages = List[Message]()
