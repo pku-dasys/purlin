@@ -6,7 +6,12 @@ import tetriski.purlin.utils.{MiniPacket, Parameters}
 
 import scala.collection.mutable.ArrayBuffer
 
-
+/** A simple one channel packet-switched router.
+ * It is not used in the main part of Purlin, but can help users to understand the multi-channel router.
+ *
+ * @param y the y coordinate
+ * @param x the x coordinate
+ */
 class SimpleRouter(y: Int, x: Int) extends Router(y, x, () => new MiniPacket) {
 
 
@@ -25,16 +30,16 @@ class SimpleRouter(y: Int, x: Int) extends Router(y, x, () => new MiniPacket) {
     enqs(i).ready := false.B
   }
 
-//  val srcPacketBuffer = Module(new FIFO(new Packet, NoCParam.fifoDep))
-//  srcPacketBuffer.io.enq.valid := false.B
-//  srcPacketBuffer.io.enq.bits := DontCare
-//  srcPacketBuffer.io.deq.ready := false.B
-//
-//
-//  val dstPacketBuffer = Module(new FIFO(new Packet, NoCParam.fifoDep))
-//  dstPacketBuffer.io.enq.valid := false.B
-//  dstPacketBuffer.io.enq.bits := DontCare
-//  dstPacketBuffer.io.deq.ready := false.B
+  //  val srcPacketBuffer = Module(new FIFO(new Packet, NoCParam.fifoDep))
+  //  srcPacketBuffer.io.enq.valid := false.B
+  //  srcPacketBuffer.io.enq.bits := DontCare
+  //  srcPacketBuffer.io.deq.ready := false.B
+  //
+  //
+  //  val dstPacketBuffer = Module(new FIFO(new Packet, NoCParam.fifoDep))
+  //  dstPacketBuffer.io.enq.valid := false.B
+  //  dstPacketBuffer.io.enq.bits := DontCare
+  //  dstPacketBuffer.io.deq.ready := false.B
 
 
   val packetBuffer = Module(new FIFO(new MiniPacket, Parameters.fifoDep, "packetBuffer"))
@@ -141,8 +146,8 @@ class SimpleRouter(y: Int, x: Int) extends Router(y, x, () => new MiniPacket) {
 
   }
 
-//  srcPacketBuffer.io.enq <> io.enqFromTile
-//  io.deqToTile <> dstPacketBuffer.io.deq
+  //  srcPacketBuffer.io.enq <> io.enqFromTile
+  //  io.deqToTile <> dstPacketBuffer.io.deq
 
 
 }

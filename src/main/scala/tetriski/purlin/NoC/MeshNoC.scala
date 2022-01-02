@@ -5,6 +5,14 @@ import chisel3.{Bundle, Input, Module, Vec, _}
 import tetriski.purlin.utils.Parameters
 //import tetriski.pillars.Purlin.MultiChannelPacket
 
+
+/** The packet-switched network module.
+ * TODO: use the packet-switched model to initialize this module.
+ * TODO: for some reasons in another project, the order of x-y in this module is reversed, and it should be corrected.
+ *
+ * @param routerRule the rule to initialize a router in (y, x)
+ * @param packetRule the rule to distinguish simple routers or multi-channel routers.
+ */
 class MeshNoC(routerRule: (Int, Int) => Router, packetRule: () => Bundle) extends Module {
   override def desiredName = "MeshNoc_" + Parameters.channelSize + "_" + Parameters.xSize + "_" + Parameters.ySize
 
@@ -82,6 +90,10 @@ class MeshNoC(routerRule: (Int, Int) => Router, packetRule: () => Bundle) extend
   //  io.test := tileMap(3, 2)
 }
 
+
+/** A wrapper for packet-switched network module.
+ * It is used for evaluate the area of this module in FPGA where the IO bits is limited.
+ */
 class NoCWrapperForPR(routerRule: (Int, Int) => Router, packetRule: () => Bundle) extends Module {
   val io = IO(new Bundle {
     val en = Input(Bool())
