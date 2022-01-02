@@ -14,6 +14,8 @@ import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 import scala.sys.process._
 
+/** A enumeration of algorithms
+ */
 object AlgorithmType extends Enumeration {
   type AlgorithmType = Value
   val pathFinder, minimalDis, minimalCongestion, estimation, estimationRipUp, XY, random = Value
@@ -21,9 +23,9 @@ object AlgorithmType extends Enumeration {
 
 object RouterCompiler extends App {
 
-  //  compareNetworks()
-  //    exploreInjectionRate()
-  exploreParameters()
+//    compareNetworks()
+      exploreInjectionRate()
+//  exploreParameters()
 
 
   /** Compare packet-switched and circuit-switched 2-channel 4x4 networks.
@@ -169,7 +171,7 @@ object RouterCompiler extends App {
     avgLatency
   }
 
-  /** Run algorithms for 4x4 2 channel packet switched network and then simulate.
+  /** Run algorithms for a packet switched network and then simulate.
    *
    * @param injectionRate      the injection rate
    * @param channelSize        the channel number
