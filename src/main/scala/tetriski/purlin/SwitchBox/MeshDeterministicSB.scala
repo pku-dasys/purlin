@@ -8,6 +8,7 @@ import scala.io.Source
 
 /** A on-chip network module based on look up memory.
  * This is an experimental architecture, used in another project.
+ * It is based on the circuit-switched network model.
  * It likes a packet-switched network based on Header-Body format packets.
  * But it is heavily dependent on algorithms (not in Purlin).
  */
@@ -82,6 +83,9 @@ object LocalParam {
   val t = 1 << 4
 }
 
+
+/** Local header flit.
+ */
 class HeadFlit(val w: Int = 256, val maxHops: Int = 64) extends Bundle {
   val flag = UInt(1.W)
   val info = UInt(16.W)
@@ -92,6 +96,8 @@ class HeadFlit(val w: Int = 256, val maxHops: Int = 64) extends Bundle {
   def getRoutingWidth = 3 * maxHops
 }
 
+/** A functional unit.
+ */
 class FunctionUnit(w: Int, totalChannelNum: Int, maxGrants: Int = 5) extends Module {
   val io = IO(new Bundle {
     val inputs = Input(Vec(totalChannelNum, UInt(w.W)))
@@ -100,6 +106,8 @@ class FunctionUnit(w: Int, totalChannelNum: Int, maxGrants: Int = 5) extends Mod
   })
 }
 
+/** A local look up table.
+ */
 class LocalLUM(w: Int, totalChannelNum: Int, routingTable: RoutingTable)
   extends FunctionUnit(w, totalChannelNum) {
   val LUMem = Mem(6, UInt(5.W))
@@ -108,7 +116,7 @@ class LocalLUM(w: Int, totalChannelNum: Int, routingTable: RoutingTable)
   }
 
   for (i <- 0 until totalChannelNum) {
-    for(j <- 0 until 5){
+    for (j <- 0 until 5) {
       io.grants(i)(j) := false.B
     }
     val flit = io.inputs(i).asTypeOf(new HeadFlit(w))
@@ -116,15 +124,15 @@ class LocalLUM(w: Int, totalChannelNum: Int, routingTable: RoutingTable)
     outputWire := flit
     outputWire.routing := flit.routing(flit.getRoutingWidth - 4, 0) << 3
     io.outputs(i) := outputWire.asUInt()
-//    printf("%d\n", flit.flag)
-//    val debugger = Module(new Debugger(w))
-//    debugger.io.flit := flit
+    //    printf("%d\n", flit.flag)
+    //    val debugger = Module(new Debugger(w))
+    //    debugger.io.flit := flit
     when(flit.flag === true.B) {
       val direction = flit.routing(flit.getRoutingWidth - 1, flit.getRoutingWidth - 3)
       when(direction === LocalParam.NOP.U) {
         val localID = flit.localID
         val encoding = LUMem(localID)
-        for(j <- 0 until 5){
+        for (j <- 0 until 5) {
           io.grants(i)(j) := encoding(j)
         }
       }.otherwise {
@@ -134,7 +142,9 @@ class LocalLUM(w: Int, totalChannelNum: Int, routingTable: RoutingTable)
   }
 }
 
-class Debugger(w: Int) extends Module{
+/** A debugger for the head flit.
+ */
+class Debugger(w: Int) extends Module {
   val io = IO(new Bundle() {
     val flit = Input(new HeadFlit(w))
   })
@@ -145,16 +155,19 @@ class Debugger(w: Int) extends Module{
   reg := io.flit.routing
 }
 
-
-class SBController(w: Int, totalChannelNum: Int, model: SBModel, table: RoutingTable) extends Module{
+/** A router contains a switch box and a functional unit based on a look up table.
+ */
+class SBController(w: Int, totalChannelNum: Int, model: SBModel, table: RoutingTable) extends Module {
   override def desiredName = "SBController_" + model.x + "_" + model.y
-  val io = IO(new Bundle{
+
+  val io = IO(new Bundle {
     val en = Input(Bool())
 
     val inputs = Input(Vec(totalChannelNum, UInt(w.W)))
     val outputs = Output(Vec(totalChannelNum, UInt(w.W)))
   })
-  def directionTrans(d: Int): Int ={
+
+  def directionTrans(d: Int): Int = {
     val ret = (d + 1) match {
       case LocalParam.E => Parameters.E
       case LocalParam.S => Parameters.S
@@ -173,7 +186,7 @@ class SBController(w: Int, totalChannelNum: Int, model: SBModel, table: RoutingT
   assert(model.channelSize == 1)
   lum.io.inputs <> io.inputs
   val regs = (0 until totalChannelNum).map(_ => RegInit(0.U(w.W)))
-  for(i <- 0 until totalChannelNum){
+  for (i <- 0 until totalChannelNum) {
     regs(i) := lum.io.outputs(i)
     sb.io.inputs(i)(0) := regs(i)
     io.outputs(i) := sb.io.outputs(i)(0)
@@ -181,22 +194,22 @@ class SBController(w: Int, totalChannelNum: Int, model: SBModel, table: RoutingT
 
   val configRegs = (0 until totalChannelNum).map(_ => RegInit(0.U(model.configSize.W)))
 
-  for(i <- 0 until totalChannelNum){
+  for (i <- 0 until totalChannelNum) {
     sb.io.configs(i)(0) := configRegs(i)
   }
   val maxGrants = 5
-  for(i <- 0 until maxGrants){
-    for(j <- 0 until maxGrants){
+  for (i <- 0 until maxGrants) {
+    for (j <- 0 until maxGrants) {
       val jIndex = directionTrans(j)
-      if(model.adjacency.contains(jIndex)){
+      if (model.adjacency.contains(jIndex)) {
         val jPort = model.adjacency.indexOf(jIndex)
         val src = (jIndex, 0)
         val dst = (directionTrans(i), 0)
-        if(model.adjacency.contains(dst._1)){
-          if(model.portConnectMap(dst).contains(src)){
-              when(lum.io.grants(jPort)(i)){
-                val regIndex = model.adjacency.indexOf(directionTrans(i))
-                configRegs(regIndex) := model.portConnectMap(dst).indexOf(src).U
+        if (model.adjacency.contains(dst._1)) {
+          if (model.portConnectMap(dst).contains(src)) {
+            when(lum.io.grants(jPort)(i)) {
+              val regIndex = model.adjacency.indexOf(directionTrans(i))
+              configRegs(regIndex) := model.portConnectMap(dst).indexOf(src).U
             }
           }
         }
@@ -207,12 +220,16 @@ class SBController(w: Int, totalChannelNum: Int, model: SBModel, table: RoutingT
 
 }
 
+/** A software look up table.
+ */
 class RoutingTable {
   var x = 0
   var y = 0
   var mapArray = new Array[BigInt](6)
 }
 
+/** The IO for this special network.
+ */
 class SBConfigIO {
   var routingTableMap = Map[(Int, Int), RoutingTable]()
 
@@ -235,7 +252,8 @@ class SBConfigIO {
   }
 }
 
-
+/** A test object for this special network.
+ */
 object testMeshDSB extends App {
   val model = new MeshSBModel(1, 3, 3, 4)
   val configIO = new SBConfigIO
@@ -247,6 +265,8 @@ object testMeshDSB extends App {
   }
 }
 
+/** A tester for this special network.
+ */
 class MeshDSBTester(c: DeterministicSB) extends PeekPokeTester(c) {
 
   poke(c.io.en, 1)
