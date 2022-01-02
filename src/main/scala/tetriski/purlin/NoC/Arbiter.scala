@@ -5,6 +5,15 @@ import chisel3.util.log2Ceil
 import chisel3.{Bundle, Input, Module, Output, Vec, _}
 import tetriski.purlin.utils.Parameters
 
+/** An arbiter module.
+ * It can make routing decisions (select some winner multi-channel packets) without conflicts
+ * according to grants, which are given by analyzer based on credits and routing functions.
+ *
+ * @param size               the IO number
+ * @param numChannel         the channel number
+ * @param grantResourceLimit the limited of fan-out of a flit, if there only exists unicast, it should be 1
+ * @param grantWidth         the width of grant direction
+ */
 class Arbiter(size: Int, numChannel: Int, grantResourceLimit: Int, grantWidth: Int) extends Module {
   val io = IO(new Bundle() {
     val numGrants = Input(Vec(size, Vec(numChannel, UInt(log2Ceil(grantResourceLimit + 1).W))))
@@ -62,6 +71,8 @@ class Arbiter(size: Int, numChannel: Int, grantResourceLimit: Int, grantWidth: I
 
 }
 
+/** A test object example of arbiter.
+ */
 object ArbiterTest extends App {
   val arbiter = () => new Arbiter(5, 2, Parameters.grantNumLimit, Parameters.getGrantWidth)
   iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), arbiter) {
@@ -69,6 +80,8 @@ object ArbiterTest extends App {
   }
 }
 
+/** A tester example of arbiter.
+ */
 class ArbiterTester(arbiter: Arbiter) extends PeekPokeTester(arbiter) {
   poke(arbiter.io.numGrants(0)(0), 2)
   poke(arbiter.io.grants(0)(0)(0), 1)
