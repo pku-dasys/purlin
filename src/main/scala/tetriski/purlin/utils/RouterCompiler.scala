@@ -21,9 +21,9 @@ object AlgorithmType extends Enumeration {
 
 object RouterCompiler extends App {
 
-//  compareNetworks()
-//    exploreInjectionRate()
-    exploreParameters()
+  //  compareNetworks()
+  //    exploreInjectionRate()
+  exploreParameters()
 
 
   /** Compare packet-switched and circuit-switched 2-channel 4x4 networks.
@@ -127,7 +127,12 @@ object RouterCompiler extends App {
     }
   }
 
-
+  /** Run an algorithm for 4x4 circuit switched network and then simulate.
+   *
+   * @param i           injection rate offset
+   * @param Fs          the number of possible connections offered to each output channel
+   * @param channelSize the channel number
+   */
   def testSBAlgorithm(i: Int, Fs: Int, channelSize: Int): Double = {
     //    val Fs = 8
     //    val channelSize = 2
@@ -154,7 +159,7 @@ object RouterCompiler extends App {
     outputFile.close()
 
     val network = () => new MeshSwitchBox(model, 16)
-    if(avgLatency == -1){
+    if (avgLatency == -1) {
       return avgLatency
     }
     iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
@@ -164,9 +169,29 @@ object RouterCompiler extends App {
     avgLatency
   }
 
+  /** Run algorithms for 4x4 2 channel packet switched network and then simulate.
+   *
+   * @param injectionRate      the injection rate
+   * @param channelSize        the channel number
+   * @param xSize              the x size
+   * @param ySize              the y size of network
+   * @param packetLength       the length of each packet
+   * @param onceInjection      indicating whether only inject packets at cycle 0
+   * @param underTestAlgorithm some under test algorithms
+   * @param sourceRouting      indicate whether the network use source routing
+   *
+   */
   def testNoCAlgorithm(injectionRate: Double, channelSize: Int, xSize: Int, ySize: Int,
                        packetLength: Int, onceInjection: Boolean,
                        underTestAlgorithm: Array[AlgorithmType], sourceRouting: Boolean = true): Unit = {
+
+    /** Simulate for the result (XY, Random only).
+     *
+     * @param injectionRate the injection rate
+     * @param network       the network module
+     * @param algorithm     an under test algorithm
+     *
+     */
     def runTester(network: () => MeshNoC, algorithm: AlgorithmType, injectionRate: Double,
                   onceInjection: Boolean): Unit = {
       val outputFile = new FileWriter("NoCTestingResults.txt", true)
@@ -178,6 +203,14 @@ object RouterCompiler extends App {
       }
     }
 
+    /** Simulate for the result of one algorithm.
+     *
+     * @param injectionRate the injection rate
+     * @param model         the network model
+     * @param network       the network module
+     * @param algorithm     an under test algorithm
+     *
+     */
     def runTesterWithAlgorithm(model: MeshNoCModel, network: () => MeshNoC,
                                algorithm: AlgorithmType, injectionRate: Double,
                                onceInjection: Boolean): Unit = {
@@ -243,6 +276,14 @@ object RouterCompiler extends App {
     val run3 = move3 !
   }
 
+  /** Routing algorithm for packet-switched networks.
+   *
+   * @param globalRouting the routing tasks
+   * @param model         the packet-switched network model
+   * @param algorithm     the type of algorithm
+   * @return the routing strategies
+   *
+   */
   def routingForNoC(globalRouting: GlobalRouting, model: MeshNoCModel, algorithm: AlgorithmType): GlobalRouting = {
     model.clear
 
@@ -262,6 +303,14 @@ object RouterCompiler extends App {
     val messageBuffer = new ArrayBuffer[Message]()
     val maxHops = Parameters.log2Routing / 2
 
+    /** Update priority of a new path into the queue.
+     *
+     * @param strategies    the original path
+     * @param next          the next hop
+     * @param newStrategies the new path
+     * @param algorithm     the type of algorithm
+     * @param message       the routing message (packet)
+     */
     def updatePriority(strategies: List[RoutingStrategy], next: RoutingStrategy, newStrategies: List[RoutingStrategy],
                        algorithm: AlgorithmType, message: Message = Message(0, 0, 0, 0, None, None, None)): Unit = {
       val x = next.routerX.getOrElse(-1)
@@ -286,6 +335,10 @@ object RouterCompiler extends App {
       })
     }
 
+    /** Find a feasible path for the routing message (packet).
+     *
+     * @param message the routing message (packet)
+     */
     def findPathForMessage(message: Message): Unit = {
       val messageIndex = messageBuffer.size
       priority.clear()
@@ -364,6 +417,8 @@ object RouterCompiler extends App {
       }
     }
 
+    /** Update history of congestion.
+     */
     def updateHistory(): Unit = {
       for (x <- 0 until model.xSize) {
         for (y <- 0 until model.ySize) {
@@ -401,12 +456,6 @@ object RouterCompiler extends App {
         for (messageIndex <- 0 until tmpMessageBuffer.size) {
           val message = tmpMessageBuffer(messageIndex)
           model.ripUP(message, messageIndex)
-          //rip up
-          //          val strategies = message.routingStrategy.getOrElse(List())
-          //          for (s <- strategies) {
-          //            model.ripUp(s.routerX.getOrElse(-1), s.routerY.getOrElse(-1),
-          //              s.srcDirection.getOrElse(-1), s.dstDirection, messageIndex)
-          //          }
           findPathForMessage(message)
         }
       }
@@ -415,6 +464,14 @@ object RouterCompiler extends App {
     GlobalRouting(messageBuffer.toList)
   }
 
+
+  /** Routing algorithm (mininal distance) for circuit-switched networks.
+   *
+   * @param globalRouting the routing tasks
+   * @param model         the circuit-switched network model
+   * @return the routing strategies
+   *
+   */
   def greedyRouting(globalRouting: GlobalRouting, model: MeshSBModel): GlobalRouting = {
     model.clearPath
     var sourcePortUsedMap = Map[(Int, Int), Int]()
@@ -504,7 +561,9 @@ object RouterCompiler extends App {
   }
 
   /** Read the routing tasks or strategies from a JSON file.
-   * */
+   *
+   * @param filename the name of th JSON file
+   **/
   def readJson(filename: String = "globalRouting.json") = {
     val in = Source.fromFile(filename).getLines().reduce(_ + _)
     val json = Json.parse(in)
@@ -512,7 +571,10 @@ object RouterCompiler extends App {
   }
 
   /** Write the routing tasks or strategies as a JSON file.
-   * */
+   *
+   * @param globalRouting routing tasks or strategies
+   * @param filename      the name of th JSON file
+   **/
   def writeJson(globalRouting: GlobalRouting, filename: String = "globalRouting.json"): Unit = {
     val json = GlobalRouting.write(globalRouting)
     val out = Json.prettyPrint(json)
@@ -529,7 +591,7 @@ object RouterCompiler extends App {
    * @param onceInjection  indicating whether only inject packets at cycle 0
    * @param packetNum      number of packets injected to each router, only used when onceInjection == false
    * @param randomPLength  indicating whether generating packets with different length
-   * */
+   **/
   def genRandomTask(injectionRatio: Double, model: MeshModel, packetLength: Int = 0,
                     onceInjection: Boolean = true, packetNum: Int = 0, randomPLength: Boolean = false) = {
     var messages = List[Message]()
