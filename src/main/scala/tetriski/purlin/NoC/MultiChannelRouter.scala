@@ -9,7 +9,7 @@ import scala.collection.mutable.ArrayBuffer
 
 /** A multi-channel router module.
  *
- * TODO: betterFrequency has some bugs now , which has not been used in fact, so it should be corrected.
+ * TODO: betterFrequency has some bugs now, which has not been used in fact, so it should be corrected.
  *
  * @param y the y coordinate
  * @param x the x coordinate

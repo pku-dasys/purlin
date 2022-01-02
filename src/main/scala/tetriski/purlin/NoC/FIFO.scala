@@ -3,11 +3,21 @@ package tetriski.purlin.NoC
 import chisel3._
 import chisel3.util._
 
+/** A test data bundle.
+ */
 class DataBundle extends Bundle {
   val a = UInt(32.W)
   val b = UInt(32.W)
 }
 
+/** A FIFO buffer.
+ *
+ * TODO: betterFrequency has some bugs now, which has not been used in fact, so it should be corrected.
+ *
+ * @param gen  the rule of data bundle
+ * @param n    the buffer depth
+ * @param name the module name
+ */
 class FIFO[T <: Data](gen: T, n: Int, name: String, betterFrequency: Boolean = false) extends Module {
   val io = IO(new Bundle {
     val enq = Flipped(new DecoupledIO(gen))
@@ -32,7 +42,7 @@ class FIFO[T <: Data](gen: T, n: Int, name: String, betterFrequency: Boolean = f
   val isEmpty = !isFull && (enqPtr === deqPtr)
   val deqPtrInc = deqPtr + 1.U
   val enqPtrInc = enqPtr + 1.U
-  if(betterFrequency){
+  if (betterFrequency) {
     val isFullNextNext = Mux(doEnq && !doDeq && ((enqPtrInc + 1.U) === deqPtr),
       true.B, Mux(doDeq && isFull, false.B,
         isFull))
@@ -40,7 +50,7 @@ class FIFO[T <: Data](gen: T, n: Int, name: String, betterFrequency: Boolean = f
     enqPtr := Mux(doEnq, enqPtrInc, enqPtr)
     deqPtr := Mux(doDeq, deqPtrInc, deqPtr)
     isFull := isFullNext
-  }else{
+  } else {
     val isFullNext = Mux(doEnq && !doDeq && (enqPtrInc === deqPtr),
       true.B, Mux(doDeq && isFull, false.B,
         isFull))

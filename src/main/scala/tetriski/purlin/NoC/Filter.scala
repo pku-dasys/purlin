@@ -4,11 +4,17 @@ import chisel3._
 import chisel3.util.log2Ceil
 import tetriski.purlin.utils.Parameters
 
-class Filter[T <: Data](requestSize: Int, resourceLimit: Int, dataWidth: Int) extends Module{
-  /** @example If resourceLimit = 2, it means there are 2 available resources,
-   *          the number of true signals of requests may be 0, 1 or 2.
-   *          So it needs 2 bits to distinguish it.
-   */
+/** An useful module performing filtering function.
+ * Filtering function: {(flag, data)}.filer(item => item.flag == true).map(item => item.data)
+ *
+ * @param requestSize   the size of the original (flag, data) bundles
+ * @param resourceLimit the limit number of available resources
+ * @param dataWidth     the data width
+ * @example If resourceLimit = 2, it means there are 2 available resources,
+ *          the number of true signals of requests may be 0, 1 or 2.
+ *          So it needs 2 bits to distinguish it.
+ */
+class Filter[T <: Data](requestSize: Int, resourceLimit: Int, dataWidth: Int) extends Module {
   val resWidth = log2Ceil(resourceLimit + 1)
 
   val io = IO(new Bundle {
@@ -31,7 +37,7 @@ class Filter[T <: Data](requestSize: Int, resourceLimit: Int, dataWidth: Int) ex
     accumRequest(i + 1) := signalUInt(i + 1) + accumRequest(i)
   }
 
-  when(accumRequest(0) =/= 0.U){
+  when(accumRequest(0) =/= 0.U) {
     io.resources(0) := io.dataRequests(0)
   }
 
