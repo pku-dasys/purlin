@@ -6,6 +6,14 @@ import tetriski.purlin.utils.{AnalyzedPacket, MultiChannelPacket, Parameters}
 
 import scala.collection.mutable.ArrayBuffer
 
+
+/** A multi-channel router module.
+ *
+ * TODO: betterFrequency has some bugs now , which has not been used in fact, so it should be corrected.
+ *
+ * @param y the y coordinate
+ * @param x the x coordinate
+ */
 class MultiChannelRouter(y: Int, x: Int, betterFrequency: Boolean = false)
   extends Router(y, x, () => new MultiChannelPacket) {
 
@@ -63,6 +71,9 @@ class MultiChannelRouter(y: Int, x: Int, betterFrequency: Boolean = false)
 
     val analyzers = (0 until Parameters.channelSize)
       .map(_ => Module(new Analyzer(size, y, x, deqSeq.toArray, broadcastArray)))
+
+    /** Codes here play the role of unpacker
+     */
     for (channel <- 0 until Parameters.channelSize) {
       analyzers(channel).io.packet := buffers(i).io.deq.bits.packets(channel)
       analyzers(channel).io.valid := false.B
@@ -74,6 +85,7 @@ class MultiChannelRouter(y: Int, x: Int, betterFrequency: Boolean = false)
       emptyAnalyzedPacket.packet := DontCare
       packer.io.analyzedPackets(i * Parameters.channelSize + channel) := emptyAnalyzedPacket
       channelReady(channel) := analyzers(channel).io.channelReady
+
       when(buffers(i).io.deq.valid && io.en) {
         when(buffers(i).io.deq.bits.validNum > channel.U) {
           analyzers(channel).io.valid := true.B

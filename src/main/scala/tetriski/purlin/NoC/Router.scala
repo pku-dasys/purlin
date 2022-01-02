@@ -6,6 +6,8 @@ import tetriski.purlin.utils.{Coordinate, Parameters}
 
 import scala.collection.mutable.ArrayBuffer
 
+/** The base class of router.
+ */
 class Router(y: Int, x: Int, packetRule: () => Bundle) extends Module {
   override def desiredName = "Router_" + x + "_" + y
 

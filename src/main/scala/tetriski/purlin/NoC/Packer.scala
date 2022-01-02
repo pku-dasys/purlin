@@ -4,6 +4,15 @@ import chisel3.iotesters.PeekPokeTester
 import chisel3.{Bundle, Input, Output, _}
 import tetriski.purlin.utils.{AnalyzedPacket, MultiChannelPacket, MiniPacket, Parameters}
 
+/** A packet module.
+ * The packer can combine mini-packets to be sent to the same port as a multi-channel packet
+ * The filters here play the role of switch.
+ *
+ * TODO: betterFrequency has some bugs now , which has not been used in fact, so it should be corrected.
+ *
+ * @param numIn the number of input analyzed mini-packets
+ * @param numOut the number of output multi-channel packets
+ */
 class Packer(numIn: Int, numOut: Int, betterFrequency: Boolean = false) extends Module {
   val io = IO(new Bundle() {
     val analyzedPackets = Input(Vec(numIn, new AnalyzedPacket))
@@ -66,6 +75,8 @@ class Packer(numIn: Int, numOut: Int, betterFrequency: Boolean = false) extends 
   }
 }
 
+/** A test object of the packer.
+ */
 object PackerTest extends App {
   val packer = () => new Packer(10, 5)
   iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), packer) {
@@ -73,6 +84,8 @@ object PackerTest extends App {
   }
 }
 
+/** A tester of the packer.
+ */
 class PackerTester(packer: Packer) extends PeekPokeTester(packer) {
   poke(packer.io.analyzedPackets(0).packet.payload, 1)
   poke(packer.io.analyzedPackets(0).grantNum, 2)
