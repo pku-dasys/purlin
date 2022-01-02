@@ -8,6 +8,17 @@ import tetriski.purlin.utils.{AnalyzedPacket, Coordinate, MiniPacket, Parameters
 
 import scala.collection.mutable.ArrayBuffer
 
+/** An analyzer module belonging to a router.
+ * The analyzer can serve as a distributed routing functional unit,
+ * or a decoder that right-shifts the routing path of mini-packets by 2-bits,
+ * and send an output request to the arbiter.
+ *
+ * @param size           the IO number of the router
+ * @param y              the y coordinate
+ * @param x              the x coordinate
+ * @param deqSeq         a map of direction -> port index of the router
+ * @param broadcastArray an adjacent array of the router
+ */
 class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
                broadcastArray: Array[(Int, Int)]) extends Module {
   val io = IO(new Bundle() {
@@ -19,7 +30,7 @@ class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
     val channelReady = Output(Bool())
   })
 
-//  println(y.toString + " " + x.toString + " " + size.toString)
+  //  println(y.toString + " " + x.toString + " " + size.toString)
 
   val xUInt = x.U(Parameters.log2X.W)
   val yUInt = y.U(Parameters.log2Y.W)
@@ -49,21 +60,21 @@ class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
       io.channelReady := io.deqsReady(size - 1)
     }.otherwise {
       val direction = Wire(UInt(2.W))
-      if(Parameters.sourceRouting){
+      if (Parameters.sourceRouting) {
         direction := routing(1, 0)
         io.analyzedPacket.packet.header.routing := routing(Parameters.log2Routing - 1, 2)
-      }else{
+      } else {
         //X-Y routing
-        when(dst.x === xUInt ){
-          when(dst.y > yUInt){
+        when(dst.x === xUInt) {
+          when(dst.y > yUInt) {
             direction := Parameters.S.U
-          }.otherwise{
+          }.otherwise {
             direction := Parameters.N.U
           }
-        }.otherwise{
-          when(dst.x > xUInt){
+        }.otherwise {
+          when(dst.x > xUInt) {
             direction := Parameters.E.U
-          }.otherwise{
+          }.otherwise {
             direction := Parameters.W.U
           }
         }
@@ -76,7 +87,7 @@ class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
 
     }
 
-    if(Parameters.useBroadcast){
+    if (Parameters.useBroadcast) {
       when(src === dst) {
         //broadcast
         //By default, we assume the routing algorithm guarantees congestion should not exist when broadcasting packets.
@@ -130,7 +141,8 @@ class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
 
 }
 
-
+/** A test object example of the analyzer.
+ */
 object AnalyzerTest extends App {
   val connectArray = Array(Parameters.E, Parameters.W, Parameters.S, Parameters.N)
   val broadcastArray = connectArray.map(i => (i, connectArray.indexOf(i)))
@@ -145,6 +157,8 @@ object AnalyzerTest extends App {
   }
 }
 
+/** A tester example of the analyzer.
+ */
 class AnalyzerTester(analyzer: Analyzer, size: Int) extends PeekPokeTester(analyzer) {
   println("Test0: Grants Correctness for Broadcast")
   poke(analyzer.io.deqsReady(2), true)
