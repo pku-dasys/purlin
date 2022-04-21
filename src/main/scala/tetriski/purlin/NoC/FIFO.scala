@@ -70,5 +70,5 @@ class FIFO[T <: Data](gen: T, n: Int, name: String, betterFrequency: Boolean = f
 
 object FIFOTest extends App {
   val fifo = () => new FIFO(new DataBundle, 8, "testFIFO")
-  chisel3.Driver.execute(Array("-td", "tutorial/RTL/", "--full-stacktrace"), fifo)
+//  chisel3.Driver.execute(Array("-td", "tutorial/RTL/", "--full-stacktrace"), fifo)
 }

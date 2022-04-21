@@ -71,14 +71,15 @@ object RouterCompiler extends App {
   def exploreInjectionRate(): Unit = {
     val packetLength = 3
     val packetNumForEachEndpoint = 64
+    val size = 10
     val onceInjection = false
-    val model = new MeshModel(2, 4, 4)
+    val model = new MeshModel(2, size, size)
     val underTestAlgorithm = Array(AlgorithmType.XY)
 
     for (i <- 1 until 20) {
       val injectionRate = 0.01 * i
       genRandomTask(injectionRate, model, packetLength, onceInjection, packetNumForEachEndpoint, true)
-      testNoCAlgorithm(injectionRate, 2, 4, 4, packetLength,
+      testNoCAlgorithm(injectionRate, 2, size, size, packetLength,
         onceInjection, underTestAlgorithm, false)
     }
   }
@@ -164,9 +165,9 @@ object RouterCompiler extends App {
     if (avgLatency == -1) {
       return avgLatency
     }
-    iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
-      c => new RoutingResultTester(c, model, result)
-    }
+//    iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
+//      c => new RoutingResultTester(c, model, result)
+//    }
 
     avgLatency
   }
@@ -200,9 +201,9 @@ object RouterCompiler extends App {
       outputFile.write("%-20s%-16s%-16s".format(algorithm.toString, "-", "-"))
       outputFile.flush()
       outputFile.close()
-      iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
-        c => new MeshNoCInjection(c, algorithm, readJson(), injectionRate, onceInjection)
-      }
+//      iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
+//        c => new MeshNoCInjection(c, algorithm, readJson(), injectionRate, onceInjection)
+//      }
     }
 
     /** Simulate for the result of one algorithm.
@@ -225,9 +226,9 @@ object RouterCompiler extends App {
       outputFile.flush()
       outputFile.close()
       writeJson(result, algorithm.toString + "-globalRoutingResult.json")
-      iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
-        c => new MeshNoCInjection(c, algorithm, result, injectionRate, onceInjection)
-      }
+//      iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
+//        c => new MeshNoCInjection(c, algorithm, result, injectionRate, onceInjection)
+//      }
     }
 
     Parameters.channelSize = channelSize
@@ -697,7 +698,22 @@ object genDistributedRouting extends App {
   Parameters.retrench()
   Parameters.abandonSourceRouting()
   val network = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x), () => new MultiChannelPacket)
-  chisel3.Driver.execute(Array("-td", "RTL/"), network)
+//  chisel3.Driver.execute(Array("-td", "RTL/"), network)
+}
+
+object FVTester extends App {
+  Parameters.retrench()
+  Parameters.abandonSourceRouting()
+  Parameters.payloadSize = 1
+  Parameters.xSize = 2
+  Parameters.ySize = 2
+  val network = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x), () => new MultiChannelPacket)
+//  chisel3.Driver.execute(Array("-td", "RTL/"), network)
+  val systemVerilog = chisel3.stage.ChiselStage.emitSystemVerilog(network.apply())
+
+  val systemVerilogWriter = new FileWriter(new File(".", "inout.sv"))
+  systemVerilogWriter write systemVerilog
+  systemVerilogWriter.close()
 }
 
 /** Generate a default 4x4 2-channel source routing packet-switched network with 32-bit payload.
@@ -705,7 +721,7 @@ object genDistributedRouting extends App {
 object genSourceRouting extends App {
   Parameters.retrench()
   val network = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x), () => new MultiChannelPacket)
-  chisel3.Driver.execute(Array("-td", "RTL/"), network)
+//  chisel3.Driver.execute(Array("-td", "RTL/"), network)
 }
 
 /** Generate a default 4x4 2-channel circuit-switched network (Fs = 8) with 32-bit payload.
@@ -713,6 +729,6 @@ object genSourceRouting extends App {
 object genCircuitSwitched extends App {
   val model = new MeshSBModel(2, 4, 4, 8)
   val network = () => new MeshSwitchBox(model, 32)
-  chisel3.Driver.execute(Array("-td", "RTL/"), network)
+//  chisel3.Driver.execute(Array("-td", "RTL/"), network)
 }
 

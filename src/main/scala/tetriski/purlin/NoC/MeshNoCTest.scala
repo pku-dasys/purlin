@@ -29,7 +29,7 @@ object MeshNoCTest extends App {
     Parameters.ySize = routersPerDim
     val multiChannelRouter = () => new MeshNoC((y, x) =>
       new MultiChannelRouter(y, x, true), () => new MultiChannelPacket)
-    chisel3.Driver.execute(Array("-td", "PurlinResult/RTL/NoC-sourceRouting-F/"), multiChannelRouter)
+//    chisel3.Driver.execute(Array("-td", "PurlinResult/RTL/NoC-sourceRouting-F/"), multiChannelRouter)
   }
 
   val multiChannelRouter = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x, true), () => new MultiChannelPacket)

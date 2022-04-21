@@ -10,9 +10,9 @@ object testMeshSB extends App {
   val model = new MeshSBModel(2, 4, 4, 8)
   val network = () => new MeshSwitchBox(model, 16)
 
-  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
-    c => new MeshSBTester(c, model)
-  }
+//  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
+//    c => new MeshSBTester(c, model)
+//  }
 }
 
 /** A simple tester of a circuit-switched network by manually setting paths.

@@ -152,9 +152,9 @@ object AnalyzerTest extends App {
   }
 
   val analyzer = () => new Analyzer(connectArray.size + 1, 1, 1, deqSeq.toArray, broadcastArray)
-  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), analyzer) {
-    c => new AnalyzerTester(c, connectArray.size + 1)
-  }
+//  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), analyzer) {
+//    c => new AnalyzerTester(c, connectArray.size + 1)
+//  }
 }
 
 /** A tester example of the analyzer.

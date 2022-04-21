@@ -66,6 +66,10 @@ class MeshNoC(routerRule: (Int, Int) => Router, packetRule: () => Bundle) extend
     }
   }
 
+  val flag = routerMap(0, 0).io.enqs(0).ready & routerMap(0, 1).io.enqs(1).ready &
+    routerMap(1, 0).io.enqs(1).ready & routerMap(1, 1).io.enqs(0).ready
+  assert(flag =/= false.B)
+
   for (x <- 0 until Parameters.xSize) {
     for (y <- 0 until Parameters.ySize) {
       val srcRouter = routerMap(y, x)
