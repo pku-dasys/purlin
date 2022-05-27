@@ -87,6 +87,7 @@ class MeshNoC(routerRule: (Int, Int) => Router, packetRule: () => Bundle) extend
 
         val dstIndex = dstRouter.connectArray.indexOf(reDirection)
         dstRouter.io.enqs(dstIndex) <> srcRouter.io.deqs(i)
+        dstRouter.io.stressIn(dstIndex) <> srcRouter.io.stressOut
       }
     }
   }

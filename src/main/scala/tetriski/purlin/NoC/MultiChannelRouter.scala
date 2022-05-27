@@ -2,7 +2,7 @@ package tetriski.purlin.NoC
 
 import chisel3.{Bool, _}
 import tetriski.purlin._
-import tetriski.purlin.utils.{AnalyzedPacket, MultiChannelPacket, Parameters}
+import tetriski.purlin.utils.{AnalyzedPacket, FunctionType, MultiChannelPacket, Parameters}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -44,7 +44,15 @@ class MultiChannelRouter(y: Int, x: Int, betterFrequency: Boolean = false)
     "packetBuffer_" + s.toString, betterFrequency)))
   for (i <- 0 until size) {
     buffers(i).io.enq <> enqs(i)
+
   }
+
+  if(Parameters.functionType != FunctionType.XY){
+    io.stressOut := (0 until size - 1).map(i => buffers(i).io.stressOut).reduce(_ + _)
+  }else{
+    io.stressOut := DontCare
+  }
+
 
   val packer = Module(new Packer(size * Parameters.channelSize, size, betterFrequency))
   for (i <- 0 until size) {
@@ -71,6 +79,15 @@ class MultiChannelRouter(y: Int, x: Int, betterFrequency: Boolean = false)
 
     val analyzers = (0 until Parameters.channelSize)
       .map(_ => Module(new Analyzer(size, y, x, deqSeq.toArray, broadcastArray)))
+
+    analyzers.foreach(analyzer => for (tmp <- 0 until 4) {
+      val stress = if (validBroadcastArray.indexOf(tmp) >= 0) {
+        io.stressIn(validBroadcastArray.indexOf(tmp))
+      } else {
+        0.U
+      }
+      analyzer.io.stressIn(tmp) := stress
+    })
 
     /** Codes here play the role of unpacker
      */

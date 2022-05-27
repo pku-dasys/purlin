@@ -3,6 +3,21 @@ package tetriski.purlin.utils
 import chisel3.util.log2Ceil
 import chisel3.{Bool, Bundle, UInt, _}
 
+object FunctionType extends Enumeration {
+  type FunctionType = Value
+  val  XY, DyXY, WestFirst, ModifiedWestFirst = Value
+}
+
+object TrafficType extends Enumeration {
+  type TrafficType = Value
+  val  UniformRandom, HotSpot, Transpose, BitReversal = Value
+  var hotSpot: (Int, Int) = (0, 0)
+
+  def initHotSpot(): Unit ={
+    hotSpot = (scala.util.Random.nextInt(Parameters.xSize), scala.util.Random.nextInt(Parameters.ySize))
+  }
+}
+
 /** Global parameters.
  */
 object Parameters {
@@ -23,6 +38,10 @@ object Parameters {
   var useMultiChannelRouter = false
 
   var sourceRouting = true
+
+  var functionType = FunctionType.XY
+
+  var trafficType = TrafficType.UniformRandom
 
   /** Do not use source routing in packet-switched on-chip networks.
    */

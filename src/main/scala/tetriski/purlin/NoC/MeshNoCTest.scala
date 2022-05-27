@@ -161,7 +161,7 @@ class MeshNoCInjection(mesh: MeshNoC, algorithm: AlgorithmType = AlgorithmType.X
 
     injectionNum = globalRouting.messages.length
     cycleUpper = Math.max(globalRouting.messages.map(item =>
-      item.injectionCycle.getOrElse(defaultInjectionCycle)).max * 3, 1000)
+      item.injectionCycle.getOrElse(defaultInjectionCycle)).max * 3, 2000)
 
     defaultPacketLength = globalRouting.messages(0).packetLength.getOrElse(defaultPacketLength)
     packetLengths = (0 until injectionNum).map(i =>
@@ -222,9 +222,13 @@ class MeshNoCInjection(mesh: MeshNoC, algorithm: AlgorithmType = AlgorithmType.X
 
     val routing = algorithm match {
       case AlgorithmType.XY => directionArray.map(d => Parameters.intDirection(d)).reduce((l, r) => (l << 2) + r)
+      case AlgorithmType.DyXY => directionArray.map(d => Parameters.intDirection(d)).reduce((l, r) => (l << 2) + r)
+      case AlgorithmType.WestFirst => directionArray.map(d => Parameters.intDirection(d)).reduce((l, r) => (l << 2) + r)
+      case AlgorithmType.ModifiedWestFirst => directionArray.map(d => Parameters.intDirection(d)).reduce((l, r) => (l << 2) + r)
       case AlgorithmType.random => Random.shuffle(directionArray)
         .map(d => Parameters.intDirection(d)).reduce((l, r) => (l << 2) + r)
       case _ => {
+        //source routing
         val tmpArray = new ArrayBuffer[Int]()
         val message = globalRouting.messages(i)
         val strategies = message.routingStrategy.getOrElse(List())
@@ -431,44 +435,49 @@ class MeshNoCInjection(mesh: MeshNoC, algorithm: AlgorithmType = AlgorithmType.X
   }
 
   if (flag) {
-    throw new Exception("Maybe deadlock appeared." +
-      " You could set NoCRouterModel.deadlockPrevented as true to prevent deadlock."
-      + " Or maybe cycleUpper is too small.")
+    val warningLog = "Maybe deadlock appeared." +
+      " You could set NoCRouterModel.deadlockPrevented as true to prevent deadlock." + " Or maybe cycleUpper is too small."
+    println(warningLog)
+    val outputFile = new FileWriter("NoCTestingResults.txt", true)
+    outputFile.write("DEADLOCK!\n" )
+    outputFile.flush()
+    outputFile.close()
+  }else{
+    val minimalFiltLatency = minimalDis.reduce(_ + _).toDouble / flitNum
+    val realFlitLatency = experiencedCycle.map(item => item._2).reduce(_ + _)
+      .toDouble / flitNum
+    val networkLatencyDistribution = (0 until injectionNum).map(i =>
+      experiencedCycle(i, packetLengths(i) - 1) + originalCycle(i, packetLengths(i) - 1) - originalCycle(i, 0))
+    val networkLatency = networkLatencyDistribution.reduce(_ + _).toDouble / injectionNum
+    val packetLatencyDistribution = (0 until injectionNum).map(i =>
+      experiencedCycle(i, packetLengths(i) - 1) + originalCycle(i, packetLengths(i) - 1) - expInjCycle(i))
+    val packetLatency = packetLatencyDistribution.reduce(_ + _).toDouble / injectionNum
+
+    dumpLatency(networkLatencyDistribution, 4, 68)
+
+    println("Expected received flits: " + flitNum +
+      "\nReal received flits: " + experiencedCycle.size +
+      "\nMinimal average flit latency: " + minimalFiltLatency +
+      "\nReal average flit latency: " + realFlitLatency +
+      "\nReal average network latency: " + networkLatency +
+      "\nReal average packet latency: " + packetLatency
+    )
+
+    val outputFile = new FileWriter("NoCTestingResults.txt", true)
+    outputFile.write("%-16s%-16s%-16s%-16s%-16s%-16s\n".format(flitNum, experiencedCycle.size,
+      minimalFiltLatency.formatted("%.3f"), realFlitLatency.formatted("%.3f"),
+      networkLatency.formatted("%.3f"), packetLatency.formatted("%.3f")))
+    outputFile.flush()
+    outputFile.close()
+
+    val outputDetailFile = new FileWriter(algorithm.toString + "-DetailLatency.txt", true)
+    for (latency <- networkLatencyDistribution) {
+      outputDetailFile.write(latency + " ")
+    }
+    outputDetailFile.flush()
+    outputDetailFile.close()
   }
 
-  val minimalFiltLatency = minimalDis.reduce(_ + _).toDouble / flitNum
-  val realFlitLatency = experiencedCycle.map(item => item._2).reduce(_ + _)
-    .toDouble / flitNum
-  val networkLatencyDistribution = (0 until injectionNum).map(i =>
-    experiencedCycle(i, packetLengths(i) - 1) + originalCycle(i, packetLengths(i) - 1) - originalCycle(i, 0))
-  val networkLatency = networkLatencyDistribution.reduce(_ + _).toDouble / injectionNum
-  val packetLatencyDistribution = (0 until injectionNum).map(i =>
-    experiencedCycle(i, packetLengths(i) - 1) + originalCycle(i, packetLengths(i) - 1) - expInjCycle(i))
-  val packetLatency = packetLatencyDistribution.reduce(_ + _).toDouble / injectionNum
-
-  dumpLatency(networkLatencyDistribution, 4, 68)
-
-  println("Expected received flits: " + flitNum +
-    "\nReal received flits: " + experiencedCycle.size +
-    "\nMinimal average flit latency: " + minimalFiltLatency +
-    "\nReal average flit latency: " + realFlitLatency +
-    "\nReal average network latency: " + networkLatency +
-    "\nReal average packet latency: " + packetLatency
-  )
-
-  val outputFile = new FileWriter("NoCTestingResults.txt", true)
-  outputFile.write("%-16s%-16s%-16s%-16s%-16s%-16s\n".format(flitNum, experiencedCycle.size,
-    minimalFiltLatency.formatted("%.3f"), realFlitLatency.formatted("%.3f"),
-    networkLatency.formatted("%.3f"), packetLatency.formatted("%.3f")))
-  outputFile.flush()
-  outputFile.close()
-
-  val outputDetailFile = new FileWriter(algorithm.toString + "-DetailLatency.txt", true)
-  for (latency <- networkLatencyDistribution) {
-    outputDetailFile.write(latency + " ")
-  }
-  outputDetailFile.flush()
-  outputDetailFile.close()
 }
 
 /** A tester example of the multi-channel mesh packet-switched networks.

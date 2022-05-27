@@ -1,10 +1,10 @@
 package tetriski.purlin.NoC
 
 import chisel3.iotesters.PeekPokeTester
-import chisel3.util.{Cat, MuxLookup}
+import chisel3.util.{Cat, MuxLookup, log2Ceil}
 import chisel3.{Bool, Bundle, Input, Module, Output, UInt, Vec, Wire, when, _}
 import tetriski.purlin._
-import tetriski.purlin.utils.{AnalyzedPacket, Coordinate, MiniPacket, Parameters}
+import tetriski.purlin.utils.{AnalyzedPacket, Coordinate, FunctionType, MiniPacket, Parameters}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -21,6 +21,14 @@ import scala.collection.mutable.ArrayBuffer
  */
 class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
                broadcastArray: Array[(Int, Int)]) extends Module {
+
+  val stressWidth = if (Parameters.functionType != FunctionType.XY) {
+    log2Ceil(Parameters.fifoDep + 1) + 2
+  } else {
+    0
+  }
+
+
   val io = IO(new Bundle() {
     val packet = Input(new MiniPacket)
     val analyzedPacket = Output(new AnalyzedPacket)
@@ -28,6 +36,8 @@ class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
     val deqsReady = Input(Vec(size, Bool()))
     val valid = Input(Bool())
     val channelReady = Output(Bool())
+
+    val stressIn = Vec(4, Input(UInt(stressWidth.W)))
   })
 
   //  println(y.toString + " " + x.toString + " " + size.toString)
@@ -64,20 +74,169 @@ class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
         direction := routing(1, 0)
         io.analyzedPacket.packet.header.routing := routing(Parameters.log2Routing - 1, 2)
       } else {
-        //X-Y routing
-        when(dst.x === xUInt) {
-          when(dst.y > yUInt) {
-            direction := Parameters.S.U
-          }.otherwise {
-            direction := Parameters.N.U
+        Parameters.functionType match {
+          case FunctionType.DyXY => {
+            //dynamic X-Y
+            when(dst.x === xUInt) {
+              when(dst.y > yUInt) {
+                direction := Parameters.S.U
+              }.otherwise {
+                direction := Parameters.N.U
+              }
+            }.otherwise {
+              when(dst.x > xUInt) {
+                when(dst.y === yUInt) {
+                  direction := Parameters.E.U
+                }.otherwise {
+                  when(dst.y > yUInt) {
+                    when(io.stressIn(Parameters.E) <
+                      io.stressIn(Parameters.S)) {
+                      direction := Parameters.E.U
+                    }.otherwise {
+                      direction := Parameters.S.U
+                    }
+                  }.otherwise {
+                    when(io.stressIn(Parameters.E) <
+                      io.stressIn(Parameters.N)) {
+                      direction := Parameters.E.U
+                    }.otherwise {
+                      direction := Parameters.N.U
+                    }
+                  }
+                }
+              }.otherwise {
+                when(dst.y === yUInt) {
+                  direction := Parameters.W.U
+                }.otherwise {
+                  when(dst.y > yUInt) {
+                    when(io.stressIn(Parameters.W) <
+                      io.stressIn(Parameters.S)) {
+                      direction := Parameters.W.U
+                    }.otherwise {
+                      direction := Parameters.S.U
+                    }
+                  }.otherwise {
+                    when(io.stressIn(Parameters.W) <
+                      io.stressIn(Parameters.N)) {
+                      direction := Parameters.W.U
+                    }.otherwise {
+                      direction := Parameters.N.U
+                    }
+                  }
+                }
+              }
+            }
+        }
+          case FunctionType.WestFirst => {
+            //West First
+            when(dst.x < xUInt){
+              direction := Parameters.W.U
+            }.otherwise {
+              when(dst.x === xUInt) {
+                when(dst.y > yUInt) {
+                  direction := Parameters.S.U
+                }.otherwise {
+                  direction := Parameters.N.U
+                }
+              }.otherwise {
+//                when(dst.x > xUInt) {
+                  when(dst.y === yUInt) {
+                    direction := Parameters.E.U
+                  }.otherwise {
+                    when(dst.y > yUInt) {
+                      when(io.stressIn(Parameters.E) <
+                        io.stressIn(Parameters.S)) {
+                        direction := Parameters.E.U
+                      }.otherwise {
+                        direction := Parameters.S.U
+                      }
+                    }.otherwise {
+                      when(io.stressIn(Parameters.E) <
+                        io.stressIn(Parameters.N)) {
+                        direction := Parameters.E.U
+                      }.otherwise {
+                        direction := Parameters.N.U
+                      }
+                    }
+//                  }
+                }
+              }
+            }
+
           }
-        }.otherwise {
-          when(dst.x > xUInt) {
-            direction := Parameters.E.U
-          }.otherwise {
-            direction := Parameters.W.U
+          case FunctionType.ModifiedWestFirst => {
+            //Modified West First
+            //North-West turn is restricted.
+            when(dst.x < xUInt){
+              when(dst.y > yUInt) {
+                when(io.stressIn(Parameters.W) <
+                  io.stressIn(Parameters.S)) {
+                  direction := Parameters.W.U
+                }.otherwise {
+                  direction := Parameters.S.U
+                }
+              }.otherwise{
+                direction := Parameters.W.U
+              }
+            }.otherwise {
+              when(dst.x === xUInt) {
+                when(dst.y > yUInt) {
+                  direction := Parameters.S.U
+                }.otherwise {
+                  direction := Parameters.N.U
+                }
+              }.otherwise {
+//                when(dst.x > xUInt) {
+                  when(dst.y === yUInt) {
+                    direction := Parameters.E.U
+                  }.otherwise {
+                    when(dst.y > yUInt) {
+                      when(io.stressIn(Parameters.E) <
+                        io.stressIn(Parameters.S)) {
+                        direction := Parameters.E.U
+                      }.otherwise {
+                        direction := Parameters.S.U
+                      }
+                    }.otherwise {
+                      when(io.stressIn(Parameters.E) <
+                        io.stressIn(Parameters.N)) {
+                        direction := Parameters.E.U
+                      }.otherwise {
+                        direction := Parameters.N.U
+                      }
+                    }
+                  }
+//                }
+              }
+            }
+
+          }
+          case _ => {
+            //X-Y routing
+            when(dst.x === xUInt) {
+              when(dst.y > yUInt) {
+                direction := Parameters.S.U
+              }.otherwise {
+                direction := Parameters.N.U
+              }
+            }.otherwise {
+              when(dst.x > xUInt) {
+                direction := Parameters.E.U
+              }.otherwise {
+                direction := Parameters.W.U
+              }
+            }
           }
         }
+
+
+        if (Parameters.functionType == FunctionType.XY){
+
+        }else {
+
+        }
+
+
         io.analyzedPacket.packet.header.routing := DontCare
       }
       val grant = MuxLookup(direction, Parameters.Fault.U(Parameters.getGrantWidth.W), deqSeq)
@@ -152,9 +311,15 @@ object AnalyzerTest extends App {
   }
 
   val analyzer = () => new Analyzer(connectArray.size + 1, 1, 1, deqSeq.toArray, broadcastArray)
+<<<<<<< HEAD
 //  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), analyzer) {
 //    c => new AnalyzerTester(c, connectArray.size + 1)
 //  }
+=======
+    iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), analyzer) {
+      c => new AnalyzerTester(c, connectArray.size + 1)
+    }
+>>>>>>> temp
 }
 
 /** A tester example of the analyzer.
