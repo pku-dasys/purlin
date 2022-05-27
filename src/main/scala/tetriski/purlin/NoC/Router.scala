@@ -2,7 +2,7 @@ package tetriski.purlin.NoC
 
 import chisel3.util._
 import chisel3.{Bundle, Input, Module, Vec, _}
-import tetriski.purlin.utils.{Coordinate, Parameters}
+import tetriski.purlin.utils.{Coordinate, FunctionType, Parameters}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -40,6 +40,12 @@ class Router(y: Int, x: Int, packetRule: () => Bundle) extends Module {
   val defaultP = 0.U
   val defaultRouting = 0.U(log2Ceil(4 * (Parameters.xSize + Parameters.ySize)).W)
 
+  val stressWidth = if (Parameters.functionType != FunctionType.XY) {
+    log2Ceil(Parameters.fifoDep + 1) + 2
+  } else {
+    0
+  }
+
 
   val io = IO(new Bundle {
     val enqs = Vec(connectSize, Flipped(new DecoupledIO(packetRule.apply())))
@@ -50,8 +56,9 @@ class Router(y: Int, x: Int, packetRule: () => Bundle) extends Module {
     val enqFromTile = Flipped(new DecoupledIO(packetRule.apply()))
     val deqToTile = new DecoupledIO(packetRule.apply())
 
+    val stressIn = Vec(connectSize, Input(UInt((stressWidth).W)))
+    val stressOut = Output(UInt((stressWidth).W))
   })
-
 
 
   val enqs = (0 until size).map(_ => Wire(Flipped(new DecoupledIO(packetRule.apply()))))

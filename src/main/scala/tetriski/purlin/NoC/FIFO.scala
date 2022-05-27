@@ -2,6 +2,7 @@ package tetriski.purlin.NoC
 
 import chisel3._
 import chisel3.util._
+import tetriski.purlin.utils.{FunctionType, Parameters}
 
 /** A test data bundle.
  */
@@ -19,9 +20,21 @@ class DataBundle extends Bundle {
  * @param name the module name
  */
 class FIFO[T <: Data](gen: T, n: Int, name: String, betterFrequency: Boolean = false) extends Module {
+  def incHelper(input: UInt): UInt ={
+    Mux(input + 1.U === n.U, 0.U, input + 1.U)
+  }
+
+  val stressWidth = if (Parameters.functionType != FunctionType.XY) {
+    log2Ceil(Parameters.fifoDep + 1) + 2
+  } else {
+    0
+  }
+
   val io = IO(new Bundle {
     val enq = Flipped(new DecoupledIO(gen))
     val deq = new DecoupledIO(gen)
+
+    val stressOut = Output(UInt(stressWidth.W))
   })
 
   override def desiredName = name
@@ -34,16 +47,18 @@ class FIFO[T <: Data](gen: T, n: Int, name: String, betterFrequency: Boolean = f
   val deqRdy = io.deq.ready
 
 
-  val enqPtr = RegInit(0.asUInt(log2Ceil(n).W))
-  val deqPtr = RegInit(0.asUInt(log2Ceil(n).W))
+  val enqPtr = RegInit(0.asUInt(log2Ceil(n + 1).W))
+  val deqPtr = RegInit(0.asUInt(log2Ceil(n + 1).W))
   val isFull = RegInit(false.B)
   val doEnq = enqRdy && enqVal
   val doDeq = deqRdy && deqVal
   val isEmpty = !isFull && (enqPtr === deqPtr)
-  val deqPtrInc = deqPtr + 1.U
-  val enqPtrInc = enqPtr + 1.U
+  //  val deqPtrInc = deqPtr + 1.U
+  //  val enqPtrInc = enqPtr + 1.U
+  val deqPtrInc = incHelper(deqPtr)
+  val enqPtrInc = incHelper(enqPtr)
   if (betterFrequency) {
-    val isFullNextNext = Mux(doEnq && !doDeq && ((enqPtrInc + 1.U) === deqPtr),
+    val isFullNextNext = Mux(doEnq && !doDeq && (incHelper(enqPtrInc) === deqPtr),
       true.B, Mux(doDeq && isFull, false.B,
         isFull))
     val isFullNext = RegNext(isFullNextNext)
@@ -66,9 +81,16 @@ class FIFO[T <: Data](gen: T, n: Int, name: String, betterFrequency: Boolean = f
   enqRdy := !isFull
   deqVal := !isEmpty
   ram(deqPtr) <> deqDat
+
+  when(isFull) {
+    io.stressOut := n.U
+  }.otherwise {
+    io.stressOut := enqPtr - deqPtr
+  }
+
 }
 
 object FIFOTest extends App {
   val fifo = () => new FIFO(new DataBundle, 8, "testFIFO")
-  chisel3.Driver.execute(Array("-td", "tutorial/RTL/", "--full-stacktrace"), fifo)
+  //  chisel3.Driver.execute(Array("-td", "tutorial/RTL/", "--full-stacktrace"), fifo)
 }

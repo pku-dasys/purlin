@@ -4,6 +4,7 @@ import java.io.{File, FileWriter, PrintWriter}
 import java.util.Date
 
 import chisel3.iotesters
+import chisel3.util.log2Ceil
 import play.api.libs.json.{JsObject, JsValue, Json}
 import tetriski.purlin.NoC.{MeshNoC, MeshNoCInjection, MultiChannelRouter}
 import tetriski.purlin.SwitchBox.{MeshSwitchBox, RoutingResultTester}
@@ -18,13 +19,13 @@ import scala.sys.process._
  */
 object AlgorithmType extends Enumeration {
   type AlgorithmType = Value
-  val pathFinder, minimalDis, minimalCongestion, estimation, estimationRipUp, XY, random = Value
+  val pathFinder, minimalDis, minimalCongestion, estimation, estimationRipUp, XY, random, DyXY, WestFirst, ModifiedWestFirst = Value
 }
 
 object RouterCompiler extends App {
 
   //    compareNetworks()
-//  exploreInjectionRate()
+  //  exploreInjectionRate()
   //  exploreParameters()
 
 
@@ -69,18 +70,34 @@ object RouterCompiler extends App {
   /** Explore a 2-channel 4x4 packet-switched distributed routing network under different injection rate.
    */
   def exploreInjectionRate(): Unit = {
-    val packetLength = 3
+    Parameters.fifoDep = 2
+    val channelSize = 1
+    Parameters.channelSize = channelSize
+    val packetLength = 5
     val packetNumForEachEndpoint = 64
     val onceInjection = false
-    val model = new MeshModel(2, 4, 4)
-    val underTestAlgorithm = Array(AlgorithmType.XY)
+    val model = new MeshModel(channelSize, 4, 4)
+    //    val underTestAlgorithm = Array(AlgorithmType.XY, AlgorithmType.DyXY)
+    val underTestAlgorithm = Array(AlgorithmType.XY, AlgorithmType.DyXY, AlgorithmType.WestFirst, AlgorithmType.ModifiedWestFirst)
 
-    for (i <- 1 until 20) {
-      val injectionRate = 0.01 * i
-      genRandomTask(injectionRate, model, packetLength, onceInjection, packetNumForEachEndpoint, true)
-      testNoCAlgorithm(injectionRate, 2, 4, 4, packetLength,
-        onceInjection, underTestAlgorithm, false)
+    val underTestTraffic = Array(TrafficType.UniformRandom, TrafficType.HotSpot, TrafficType.Transpose, TrafficType.BitReversal)
+
+
+    for(traffic <- underTestTraffic){
+      Parameters.trafficType = traffic
+      for (j <- 0 until 5) {
+        for (i <- 10 until 21) {
+          if(traffic == TrafficType.HotSpot){
+            TrafficType.initHotSpot()
+          }
+          val injectionRate = 0.02 * i
+          genRandomTask(injectionRate, model, packetLength, onceInjection, packetNumForEachEndpoint, true)
+          testNoCAlgorithm(injectionRate, channelSize, 4, 4, packetLength,
+            onceInjection, underTestAlgorithm, false)
+        }
+      }
     }
+
   }
 
   /** Explore suitable parameters and injection rate where other algorithms perform better than XY-routing.
@@ -197,7 +214,7 @@ object RouterCompiler extends App {
     def runTester(network: () => MeshNoC, algorithm: AlgorithmType, injectionRate: Double,
                   onceInjection: Boolean): Unit = {
       val outputFile = new FileWriter("NoCTestingResults.txt", true)
-      outputFile.write("%-20s%-16s%-16s".format(algorithm.toString, "-", "-"))
+      outputFile.write("%-20s%-16s%-16s%-16s".format(algorithm.toString, Parameters.trafficType.toString, "-", "-"))
       outputFile.flush()
       outputFile.close()
       iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
@@ -220,7 +237,7 @@ object RouterCompiler extends App {
       var start = new Date().getTime()
       val result = routingForNoC(readJson(), model, algorithm)
       var end = new Date().getTime()
-      outputFile.write("%-20s%-16s%-16s".format(algorithm.toString,
+      outputFile.write("%-20s%-16s%-16s%-16s".format(algorithm.toString, Parameters.trafficType.toString,
         (end - start).toString, model.estimateAll().formatted("%.3f")))
       outputFile.flush()
       outputFile.close()
@@ -237,21 +254,51 @@ object RouterCompiler extends App {
     if (!sourceRouting) {
       Parameters.abandonSourceRouting()
     }
+
+
     val model = new MeshNoCModel(Parameters.channelSize, Parameters.xSize, Parameters.ySize, 100.0)
 
     val network = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x, false), () => new MultiChannelPacket)
 
-    val outputFile = new FileWriter("NoCTestingResults.txt")
-    outputFile.write("xSize: " + Parameters.xSize + ", ySize: " + Parameters.ySize +
-      ", channelSize: " + Parameters.channelSize + ", injectionRate: " + injectionRate +
-      ", packetLength: " + packetLength + "\n")
-    outputFile.write("%-20s%-16s%-16s%-16s%-16s%-16s%-16s%-16s%-16s\n"
-      .format("Algorithm", "Time", "Estimate", "Expected", "Received", "Minimal", "Average", "Network", "Packet"))
-    outputFile.flush()
-    outputFile.close()
+
+    val file = new File("PurlinTest/" + injectionRate + "-" +
+      Parameters.xSize + "x" + Parameters.ySize + "-" + Parameters.channelSize + "-NoCTestingResults.txt")
+    if (file.exists()) {
+      val move = "cp PurlinTest/" + injectionRate + "-" +
+        Parameters.xSize + "x" + Parameters.ySize + "-" + Parameters.channelSize + "-NoCTestingResults.txt NoCTestingResults.txt"
+      val run = move !
+    } else {
+      val outputFile = new FileWriter("NoCTestingResults.txt")
+      outputFile.write("xSize: " + Parameters.xSize + ", ySize: " + Parameters.ySize +
+        ", channelSize: " + Parameters.channelSize + ", injectionRate: " + injectionRate +
+        ", packetLength: " + packetLength + "\n")
+      outputFile.write("%-20s%-16s%-16s%-16s%-16s%-16s%-16s%-16s%-16s%-16s\n"
+        .format("Algorithm", "Traffic", "Time", "Estimate", "Expected", "Received", "Minimal", "Average", "Network", "Packet"))
+      outputFile.flush()
+      outputFile.close()
+    }
+
 
     underTestAlgorithm.foreach(algorithm => algorithm match {
       case AlgorithmType.XY => runTester(network, algorithm, injectionRate, onceInjection)
+      case AlgorithmType.DyXY => {
+        Parameters.functionType = FunctionType.DyXY
+        val newNetwork = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x, false), () => new MultiChannelPacket)
+        runTester(newNetwork, algorithm, injectionRate, onceInjection)
+        Parameters.functionType = FunctionType.XY
+      }
+      case AlgorithmType.WestFirst => {
+        Parameters.functionType = FunctionType.WestFirst
+        val newNetwork = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x, false), () => new MultiChannelPacket)
+        runTester(newNetwork, algorithm, injectionRate, onceInjection)
+        Parameters.functionType = FunctionType.XY
+      }
+      case AlgorithmType.ModifiedWestFirst => {
+        Parameters.functionType = FunctionType.ModifiedWestFirst
+        val newNetwork = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x, false), () => new MultiChannelPacket)
+        runTester(newNetwork, algorithm, injectionRate, onceInjection)
+        Parameters.functionType = FunctionType.XY
+      }
       case AlgorithmType.random => runTester(network, algorithm, injectionRate, onceInjection)
       case AlgorithmType.minimalDis => runTesterWithAlgorithm(model, network, algorithm, injectionRate, onceInjection)
       case AlgorithmType.minimalCongestion =>
@@ -645,11 +692,84 @@ object RouterCompiler extends App {
               injectionCycle += 1
             }
 
-            var dstX = scala.util.Random.nextInt(model.xSize)
-            var dstY = scala.util.Random.nextInt(model.ySize)
+            var dstX = i
+            var dstY = j
+            Parameters.trafficType match {
+              case TrafficType.UniformRandom => {
+                dstX = scala.util.Random.nextInt(model.xSize)
+                dstY = scala.util.Random.nextInt(model.ySize)
+              }
+              case _ => {
+
+              }
+            }
             while ((dstX == i) && (dstY == j)) {
-              dstX = scala.util.Random.nextInt(model.xSize)
-              dstY = scala.util.Random.nextInt(model.ySize)
+              Parameters.trafficType match {
+                case TrafficType.BitReversal => {
+                  //xSize * ySize should be power of 2
+                  val nodeNum = model.xSize * model.ySize
+                  require((nodeNum & (nodeNum - 1)) == 0)
+                  val xWidth = log2Ceil(model.xSize)
+                  val yWidth = log2Ceil(model.ySize)
+                  val tmpBinaryX = BigInt(i).toString(2)
+                  val tmpBinaryY = BigInt(j).toString(2)
+                  val binaryX = if (xWidth == tmpBinaryX.size) {
+                    tmpBinaryX
+                  } else {
+                    (0 until (xWidth - tmpBinaryX.size)).map(_ => "0").reduce(_ + _).concat(tmpBinaryX)
+                  }
+                  val binaryY = if (yWidth == tmpBinaryY.size) {
+                    tmpBinaryY
+                  } else {
+                    (0 until (yWidth - tmpBinaryY.size)).map(_ => "0").reduce(_ + _).concat(tmpBinaryY)
+                  }
+                  val binaryXY = binaryY.concat(binaryX)
+                  val reverseBinaryXY = binaryXY.reverse
+
+                  val reverseY = BigInt(reverseBinaryXY.substring(0, yWidth), 2).toInt
+                  val reverseX = BigInt(reverseBinaryXY.substring(yWidth, reverseBinaryXY.size), 2).toInt
+
+                  if (reverseX == i && reverseY == j) {
+                    dstX = scala.util.Random.nextInt(model.xSize)
+                    dstY = scala.util.Random.nextInt(model.ySize)
+                  } else {
+                    dstX = reverseX
+                    dstY = reverseY
+                  }
+                }
+                case TrafficType.HotSpot => {
+                  if ((i, j) != TrafficType.hotSpot) {
+                    //Firstly, 10% probability to send message to the hot spot.
+                    val rand = scala.util.Random.nextInt(10)
+                    if (rand < 1) {
+                      dstX = TrafficType.hotSpot._1
+                      dstY = TrafficType.hotSpot._2
+                    } else {
+                      dstX = scala.util.Random.nextInt(model.xSize)
+                      dstY = scala.util.Random.nextInt(model.ySize)
+                    }
+                  } else {
+                    dstX = scala.util.Random.nextInt(model.xSize)
+                    dstY = scala.util.Random.nextInt(model.ySize)
+                  }
+                }
+                case TrafficType.Transpose => {
+                  //xSize should be equal to ySize
+                  require(model.xSize == model.ySize)
+                  if (i == j) {
+                    dstX = scala.util.Random.nextInt(model.xSize)
+                    dstY = scala.util.Random.nextInt(model.ySize)
+                  } else {
+                    dstX = j
+                    dstY = i
+                  }
+                }
+                case _ => { //random
+                  dstX = scala.util.Random.nextInt(model.xSize)
+                  dstY = scala.util.Random.nextInt(model.ySize)
+                }
+              }
+
             }
 
             val pLength = if (randomPLength && packetLength > 0) {
