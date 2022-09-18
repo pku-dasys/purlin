@@ -18,6 +18,11 @@ object TrafficType extends Enumeration {
   }
 }
 
+object InterconnectType extends Enumeration {
+  type InterconnectType = Value
+  val  Mesh, Torus = Value
+}
+
 /** Global parameters.
  */
 object Parameters {
@@ -42,6 +47,8 @@ object Parameters {
   var functionType = FunctionType.XY
 
   var trafficType = TrafficType.UniformRandom
+
+  var interconnectType = InterconnectType.Mesh
 
   /** Do not use source routing in packet-switched on-chip networks.
    */

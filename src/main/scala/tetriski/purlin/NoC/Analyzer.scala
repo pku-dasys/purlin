@@ -4,7 +4,7 @@ import chisel3.iotesters.PeekPokeTester
 import chisel3.util.{Cat, MuxLookup, log2Ceil}
 import chisel3.{Bool, Bundle, Input, Module, Output, UInt, Vec, Wire, when, _}
 import tetriski.purlin._
-import tetriski.purlin.utils.{AnalyzedPacket, Coordinate, FunctionType, MiniPacket, Parameters}
+import tetriski.purlin.utils.{AnalyzedPacket, Coordinate, FunctionType, InterconnectType, MiniPacket, Parameters}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -74,21 +74,51 @@ class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
         direction := routing(1, 0)
         io.analyzedPacket.packet.header.routing := routing(Parameters.log2Routing - 1, 2)
       } else {
+        def isGoSouth(): Bool = {
+          val ret = Parameters.interconnectType match {
+            case InterconnectType.Torus => {
+              Mux(dst.y >= yUInt, (dst.y - yUInt) < (Parameters.ySize.U + yUInt - dst.y),
+                (Parameters.ySize.U - yUInt + dst.y) < (yUInt - dst.y))
+            }
+            case _ => {
+              //mesh
+              dst.y > yUInt
+            }
+          }
+          ret
+        }
+        def isGoEast(): Bool = {
+          val ret = Parameters.interconnectType match {
+            case InterconnectType.Torus => {
+              Mux(dst.x >= xUInt, (dst.x - xUInt) < (Parameters.xSize.U + xUInt - dst.x),
+                (Parameters.xSize.U - xUInt + dst.x) < (xUInt - dst.x))
+            }
+            case _ => {
+              //mesh
+              dst.x > xUInt
+            }
+          }
+          ret
+        }
+
+        def isGoNorth() = (!isGoSouth()) & (dst.y =/= yUInt)
+        def isGoWest() = (!isGoEast()) & (dst.x =/= xUInt)
+
         Parameters.functionType match {
           case FunctionType.DyXY => {
             //dynamic X-Y
             when(dst.x === xUInt) {
-              when(dst.y > yUInt) {
+              when(isGoSouth()) {
                 direction := Parameters.S.U
               }.otherwise {
                 direction := Parameters.N.U
               }
             }.otherwise {
-              when(dst.x > xUInt) {
+              when(isGoEast()) {
                 when(dst.y === yUInt) {
                   direction := Parameters.E.U
                 }.otherwise {
-                  when(dst.y > yUInt) {
+                  when(isGoSouth()) {
                     when(io.stressIn(Parameters.E) <
                       io.stressIn(Parameters.S)) {
                       direction := Parameters.E.U
@@ -108,7 +138,7 @@ class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
                 when(dst.y === yUInt) {
                   direction := Parameters.W.U
                 }.otherwise {
-                  when(dst.y > yUInt) {
+                  when(isGoSouth()) {
                     when(io.stressIn(Parameters.W) <
                       io.stressIn(Parameters.S)) {
                       direction := Parameters.W.U
@@ -126,39 +156,37 @@ class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
                 }
               }
             }
-        }
+          }
           case FunctionType.WestFirst => {
             //West First
-            when(dst.x < xUInt){
+            when(isGoWest()){
               direction := Parameters.W.U
             }.otherwise {
               when(dst.x === xUInt) {
-                when(dst.y > yUInt) {
+                when(isGoSouth()) {
                   direction := Parameters.S.U
                 }.otherwise {
                   direction := Parameters.N.U
                 }
               }.otherwise {
-//                when(dst.x > xUInt) {
-                  when(dst.y === yUInt) {
-                    direction := Parameters.E.U
-                  }.otherwise {
-                    when(dst.y > yUInt) {
-                      when(io.stressIn(Parameters.E) <
-                        io.stressIn(Parameters.S)) {
-                        direction := Parameters.E.U
-                      }.otherwise {
-                        direction := Parameters.S.U
-                      }
+                when(dst.y === yUInt) {
+                  direction := Parameters.E.U
+                }.otherwise {
+                  when(isGoSouth()) {
+                    when(io.stressIn(Parameters.E) <
+                      io.stressIn(Parameters.S)) {
+                      direction := Parameters.E.U
                     }.otherwise {
-                      when(io.stressIn(Parameters.E) <
-                        io.stressIn(Parameters.N)) {
-                        direction := Parameters.E.U
-                      }.otherwise {
-                        direction := Parameters.N.U
-                      }
+                      direction := Parameters.S.U
                     }
-//                  }
+                  }.otherwise {
+                    when(io.stressIn(Parameters.E) <
+                      io.stressIn(Parameters.N)) {
+                      direction := Parameters.E.U
+                    }.otherwise {
+                      direction := Parameters.N.U
+                    }
+                  }
                 }
               }
             }
@@ -167,8 +195,8 @@ class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
           case FunctionType.ModifiedWestFirst => {
             //Modified West First
             //North-West turn is restricted.
-            when(dst.x < xUInt){
-              when(dst.y > yUInt) {
+            when(isGoWest()){
+              when(isGoSouth()) {
                 when(io.stressIn(Parameters.W) <
                   io.stressIn(Parameters.S)) {
                   direction := Parameters.W.U
@@ -180,33 +208,33 @@ class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
               }
             }.otherwise {
               when(dst.x === xUInt) {
-                when(dst.y > yUInt) {
+                when(isGoSouth()) {
                   direction := Parameters.S.U
                 }.otherwise {
                   direction := Parameters.N.U
                 }
               }.otherwise {
-//                when(dst.x > xUInt) {
-                  when(dst.y === yUInt) {
-                    direction := Parameters.E.U
-                  }.otherwise {
-                    when(dst.y > yUInt) {
-                      when(io.stressIn(Parameters.E) <
-                        io.stressIn(Parameters.S)) {
-                        direction := Parameters.E.U
-                      }.otherwise {
-                        direction := Parameters.S.U
-                      }
+                //                when(dst.x > xUInt) {
+                when(dst.y === yUInt) {
+                  direction := Parameters.E.U
+                }.otherwise {
+                  when(isGoSouth()) {
+                    when(io.stressIn(Parameters.E) <
+                      io.stressIn(Parameters.S)) {
+                      direction := Parameters.E.U
                     }.otherwise {
-                      when(io.stressIn(Parameters.E) <
-                        io.stressIn(Parameters.N)) {
-                        direction := Parameters.E.U
-                      }.otherwise {
-                        direction := Parameters.N.U
-                      }
+                      direction := Parameters.S.U
+                    }
+                  }.otherwise {
+                    when(io.stressIn(Parameters.E) <
+                      io.stressIn(Parameters.N)) {
+                      direction := Parameters.E.U
+                    }.otherwise {
+                      direction := Parameters.N.U
                     }
                   }
-//                }
+                }
+                //                }
               }
             }
 
@@ -214,13 +242,13 @@ class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
           case _ => {
             //X-Y routing
             when(dst.x === xUInt) {
-              when(dst.y > yUInt) {
+              when(isGoSouth()) {
                 direction := Parameters.S.U
               }.otherwise {
                 direction := Parameters.N.U
               }
             }.otherwise {
-              when(dst.x > xUInt) {
+              when(isGoEast()) {
                 direction := Parameters.E.U
               }.otherwise {
                 direction := Parameters.W.U
@@ -229,12 +257,6 @@ class Analyzer(size: Int, y: Int, x: Int, deqSeq: Array[(UInt, UInt)],
           }
         }
 
-
-        if (Parameters.functionType == FunctionType.XY){
-
-        }else {
-
-        }
 
 
         io.analyzedPacket.packet.header.routing := DontCare
@@ -311,15 +333,9 @@ object AnalyzerTest extends App {
   }
 
   val analyzer = () => new Analyzer(connectArray.size + 1, 1, 1, deqSeq.toArray, broadcastArray)
-<<<<<<< HEAD
-//  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), analyzer) {
-//    c => new AnalyzerTester(c, connectArray.size + 1)
-//  }
-=======
     iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), analyzer) {
       c => new AnalyzerTester(c, connectArray.size + 1)
     }
->>>>>>> temp
 }
 
 /** A tester example of the analyzer.

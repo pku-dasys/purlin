@@ -2,7 +2,7 @@ package tetriski.purlin.NoC
 
 import chisel3.util._
 import chisel3.{Bundle, Input, Module, Vec, _}
-import tetriski.purlin.utils.{Coordinate, FunctionType, Parameters}
+import tetriski.purlin.utils.{Coordinate, FunctionType, InterconnectType, Parameters}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -14,18 +14,27 @@ class Router(y: Int, x: Int, packetRule: () => Bundle) extends Module {
   def getPacketRule = packetRule
 
   val connectArray = new ArrayBuffer[Int]()
-  if (x < Parameters.xSize - 1) {
+  if (Parameters.interconnectType == InterconnectType.Mesh) {
+    if (x < Parameters.xSize - 1) {
+      connectArray.append(Parameters.E)
+    }
+    if (x > 0) {
+      connectArray.append(Parameters.W)
+    }
+    if (y < Parameters.ySize - 1) {
+      connectArray.append(Parameters.S)
+    }
+    if (y > 0) {
+      connectArray.append(Parameters.N)
+    }
+  } else {
+    //Torus
     connectArray.append(Parameters.E)
-  }
-  if (x > 0) {
     connectArray.append(Parameters.W)
-  }
-  if (y < Parameters.ySize - 1) {
     connectArray.append(Parameters.S)
-  }
-  if (y > 0) {
     connectArray.append(Parameters.N)
   }
+
 
   val connectSize = connectArray.size
   val size = connectArray.size + 1
