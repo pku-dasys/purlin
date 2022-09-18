@@ -75,10 +75,10 @@ class MeshNoC(routerRule: (Int, Int) => Router, packetRule: () => Bundle) extend
         val reDirection = Parameters.reverse(direction)
 
         val dstRouter = direction match {
-          case Parameters.E => routerMap(y, x + 1)
-          case Parameters.W => routerMap(y, x - 1)
-          case Parameters.S => routerMap(y + 1, x)
-          case Parameters.N => routerMap(y - 1, x)
+          case Parameters.E => routerMap(y, (x + 1) % Parameters.xSize)
+          case Parameters.W => routerMap(y, (x - 1 + Parameters.xSize) % Parameters.xSize)
+          case Parameters.S => routerMap((y + 1) % Parameters.ySize, x)
+          case Parameters.N => routerMap((y - 1 + Parameters.ySize) % Parameters.ySize, x)
         }
 
         val dstIndex = dstRouter.connectArray.indexOf(reDirection)

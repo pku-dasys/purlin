@@ -70,32 +70,41 @@ object RouterCompiler extends App {
   /** Explore a 2-channel 4x4 packet-switched distributed routing network under different injection rate.
    */
   def exploreInjectionRate(): Unit = {
-    Parameters.fifoDep = 2
+    Parameters.fifoDep = 8
     val channelSize = 1
     Parameters.channelSize = channelSize
-    val packetLength = 5
+    val packetLength = 4
     val packetNumForEachEndpoint = 64
     val onceInjection = false
     val model = new MeshModel(channelSize, 4, 4)
-    //    val underTestAlgorithm = Array(AlgorithmType.XY, AlgorithmType.DyXY)
+//        val underTestAlgorithm = Array(AlgorithmType.XY)
     val underTestAlgorithm = Array(AlgorithmType.XY, AlgorithmType.DyXY, AlgorithmType.WestFirst, AlgorithmType.ModifiedWestFirst)
 
     val underTestTraffic = Array(TrafficType.UniformRandom, TrafficType.HotSpot, TrafficType.Transpose, TrafficType.BitReversal)
+//    val underTestTraffic = Array(TrafficType.UniformRandom)
+
+        val underTestInterconnect = Array(InterconnectType.Mesh, InterconnectType.Torus)
+//    val underTestInterconnect = Array(InterconnectType.Mesh)
 
 
-    for(traffic <- underTestTraffic){
+    for (traffic <- underTestTraffic) {
       Parameters.trafficType = traffic
-      for (j <- 0 until 5) {
-        for (i <- 10 until 21) {
-          if(traffic == TrafficType.HotSpot){
+      for (j <- 0 until 3) {
+        for (i <- 10 until 31) {
+          if (traffic == TrafficType.HotSpot) {
             TrafficType.initHotSpot()
           }
           val injectionRate = 0.02 * i
-          genRandomTask(injectionRate, model, packetLength, onceInjection, packetNumForEachEndpoint, true)
-          testNoCAlgorithm(injectionRate, channelSize, 4, 4, packetLength,
-            onceInjection, underTestAlgorithm, false)
+//          genRandomTask(injectionRate, model, packetLength, onceInjection, packetNumForEachEndpoint, true)
+          for (interconnect <- underTestInterconnect) {
+            Parameters.interconnectType = interconnect
+            testNoCAlgorithm(injectionRate, channelSize, 4, 4, packetLength,
+              onceInjection, underTestAlgorithm, false)
+
+          }
         }
       }
+
     }
 
   }
@@ -214,7 +223,8 @@ object RouterCompiler extends App {
     def runTester(network: () => MeshNoC, algorithm: AlgorithmType, injectionRate: Double,
                   onceInjection: Boolean): Unit = {
       val outputFile = new FileWriter("NoCTestingResults.txt", true)
-      outputFile.write("%-20s%-16s%-16s%-16s".format(algorithm.toString, Parameters.trafficType.toString, "-", "-"))
+      outputFile.write("%-20s%-16s%-16s%-16s%-16s".format(algorithm.toString, Parameters.trafficType.toString,
+        Parameters.interconnectType.toString, "-", "-"))
       outputFile.flush()
       outputFile.close()
       iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
@@ -237,7 +247,8 @@ object RouterCompiler extends App {
       var start = new Date().getTime()
       val result = routingForNoC(readJson(), model, algorithm)
       var end = new Date().getTime()
-      outputFile.write("%-20s%-16s%-16s%-16s".format(algorithm.toString, Parameters.trafficType.toString,
+      outputFile.write("%-20s%-16s%-16s%-16s%-16s".format(algorithm.toString, Parameters.trafficType.toString,
+        Parameters.interconnectType.toString,
         (end - start).toString, model.estimateAll().formatted("%.3f")))
       outputFile.flush()
       outputFile.close()
@@ -258,7 +269,7 @@ object RouterCompiler extends App {
 
     val model = new MeshNoCModel(Parameters.channelSize, Parameters.xSize, Parameters.ySize, 100.0)
 
-    val network = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x, false), () => new MultiChannelPacket)
+    val network = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x, true), () => new MultiChannelPacket)
 
 
     val file = new File("PurlinTest/" + injectionRate + "-" +
@@ -272,8 +283,8 @@ object RouterCompiler extends App {
       outputFile.write("xSize: " + Parameters.xSize + ", ySize: " + Parameters.ySize +
         ", channelSize: " + Parameters.channelSize + ", injectionRate: " + injectionRate +
         ", packetLength: " + packetLength + "\n")
-      outputFile.write("%-20s%-16s%-16s%-16s%-16s%-16s%-16s%-16s%-16s%-16s\n"
-        .format("Algorithm", "Traffic", "Time", "Estimate", "Expected", "Received", "Minimal", "Average", "Network", "Packet"))
+      outputFile.write("%-20s%-16s%-16s%-16s%-16s%-16s%-16s%-16s%-16s%-16s%-16s\n"
+        .format("Algorithm", "Traffic", "Interconnect", "Time", "Estimate", "Expected", "Received", "Minimal", "Average", "Network", "Packet"))
       outputFile.flush()
       outputFile.close()
     }

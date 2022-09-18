@@ -50,7 +50,7 @@ class FIFO[T <: Data](gen: T, n: Int, name: String, betterFrequency: Boolean = f
   val enqPtr = RegInit(0.asUInt(log2Ceil(n + 1).W))
   val deqPtr = RegInit(0.asUInt(log2Ceil(n + 1).W))
   val isFull = RegInit(false.B)
-  val doEnq = enqRdy && enqVal
+  var doEnq = enqRdy && enqVal
   val doDeq = deqRdy && deqVal
   val isEmpty = !isFull && (enqPtr === deqPtr)
   //  val deqPtrInc = deqPtr + 1.U
@@ -58,13 +58,22 @@ class FIFO[T <: Data](gen: T, n: Int, name: String, betterFrequency: Boolean = f
   val deqPtrInc = incHelper(deqPtr)
   val enqPtrInc = incHelper(enqPtr)
   if (betterFrequency) {
-    val isFullNextNext = Mux(doEnq && !doDeq && (incHelper(enqPtrInc) === deqPtr),
+    //We set "enqRdy" false when (enqPtr + 2 === deqPtr) to prevent packet lose.
+    //This implementation is not very good due to a waste of one register.
+    val enqRdyReal = WireInit(false.B)
+    enqRdyReal := !isFull
+    val isFullNextNext = incHelper(enqPtrInc) === deqPtr
+    val isFullNext = Mux(doEnq && !doDeq && (enqPtrInc === deqPtr),
       true.B, Mux(doDeq && isFull, false.B,
         isFull))
-    val isFullNext = RegNext(isFullNextNext)
+
+//    val isFullNext = RegNext(isFullNextNext)
+    doEnq = enqRdyReal && enqVal
     enqPtr := Mux(doEnq, enqPtrInc, enqPtr)
     deqPtr := Mux(doDeq, deqPtrInc, deqPtr)
     isFull := isFullNext
+    enqRdy := !isFullNextNext
+
   } else {
     val isFullNext = Mux(doEnq && !doDeq && (enqPtrInc === deqPtr),
       true.B, Mux(doDeq && isFull, false.B,
@@ -72,13 +81,14 @@ class FIFO[T <: Data](gen: T, n: Int, name: String, betterFrequency: Boolean = f
     enqPtr := Mux(doEnq, enqPtrInc, enqPtr)
     deqPtr := Mux(doDeq, deqPtrInc, deqPtr)
     isFull := isFullNext
+    enqRdy := !isFull
   }
 
   val ram = Mem(n, gen)
   when(doEnq) {
     ram(enqPtr) := enqDat
   }
-  enqRdy := !isFull
+
   deqVal := !isEmpty
   ram(deqPtr) <> deqDat
 
