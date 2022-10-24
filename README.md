@@ -121,7 +121,7 @@ For more detailed information and paper reference, please refer to the following
 "Purlin: A Versatile Toolkit for the Generation and Simulation of On-Chip Network",
 2022 IEEE International Conference on Computer Design (ICCD), October 2022.`
 ```
-@article{guo-formulating-dac2021,
+@article{guo-purlin-iccd2022,
   title   = "{Purlin: A Versatile Toolkit for the Generation and Simulation of On-Chip Network}",
   author  = {Yijiang Guo and Xinming Wei and Jiaxi Zhang and Guojie Luo},
   journal = {2022 IEEE International Conference on Computer Design (ICCD)},
