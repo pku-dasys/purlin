@@ -6,6 +6,8 @@ We put forward a uniform network generation and simulation flow across distribut
 routing, source routing, and circuit-switched OCNs to enable effective
 trade-offs.
 
+![avatar](fig/multiple-routers.png)
+
 In this project, we call packet-switched OCNs as NoC, which is more commonly accepted.
 And we call circuit-switched OCNs as SwitchBox like which in FPGA.
 
@@ -111,4 +113,22 @@ make testNetworkCompare
 
      The details of simulation results for packet-switched networks.
 You can refer to NoC.MeshNoCTest.scala.
+
+## Publications
+
+For more detailed information and paper reference, please refer to the following papers:
+`Yijiang Guo, Xinming Wei, Jiaxi Zhang and Guojie Luo, 
+"Purlin: A Versatile Toolkit for the Generation and Simulation of On-Chip Network",
+2022 IEEE International Conference on Computer Design (ICCD), October 2022.`
+```
+@article{guo-formulating-dac2021,
+  title   = "{Purlin: A Versatile Toolkit for the Generation and Simulation of On-Chip Network}",
+  author  = {Yijiang Guo and Xinming Wei and Jiaxi Zhang and Guojie Luo},
+  journal = {2022 IEEE International Conference on Computer Design (ICCD)},
+  month   = {October},
+  year    = {2022},
+} 
+```
+
+
 
