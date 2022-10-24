@@ -44,6 +44,9 @@ object Parameters {
 
   var sourceRouting = true
 
+  /* The Head-Body-Tail Packet and virtual channels*/
+  var USE_VC_HBT = false
+
   var functionType = FunctionType.XY
 
   var trafficType = TrafficType.UniformRandom
@@ -147,9 +150,11 @@ object Parameters {
 
 /** A coordinate bundle.
  */
-class Coordinate() extends Bundle {
-  val x = UInt(Parameters.log2X.W)
-  val y = UInt(Parameters.log2Y.W)
+class Coordinate(val valid: Boolean = true)  extends Bundle {
+  val xWidth = if(valid){Parameters.log2X}else{0}
+  val yWidth = if(valid){Parameters.log2Y}else{0}
+  val x = UInt(xWidth.W)
+  val y = UInt(yWidth.W)
 
   def ===(that: Coordinate): Bool = {
     x === that.x && y === that.y
@@ -159,19 +164,33 @@ class Coordinate() extends Bundle {
 
 /** A header bundle.
  */
-class Header extends Bundle {
-  val src = new Coordinate
-  val dst = new Coordinate
-  val srcPort = UInt(Parameters.log2TilePortSize.W)
-  val routing = UInt(Parameters.log2Routing.W)
+class Header(val hasHead: Boolean = true)  extends Bundle {
+  val src = new Coordinate(hasHead)
+  val dst = new Coordinate(hasHead)
+  val srcPortWidth = if(hasHead){Parameters.log2TilePortSize}else{0}
+  val srcPort = UInt(srcPortWidth.W)
+  val routingWidth = if(hasHead){Parameters.log2Routing}else{0}
+  val routing = UInt(routingWidth.W)
 }
 
-/** A mini-packet bundle.
+/** A mini-packet (flit) bundle.
  */
-class MiniPacket extends Bundle {
-  val header = new Header
-  val payload = UInt(Parameters.payloadSize.W)
+class MiniPacket(val hasHead: Boolean = true) extends Bundle {
+  val header = new Header(hasHead)
+  val payloadWidth = if(Parameters.USE_VC_HBT && hasHead) {
+    Parameters.payloadSize - header.getWidth
+  }else{
+    Parameters.payloadSize
+  }
+  val payload = UInt(payloadWidth.W)
+
+  val typeWidth = if(Parameters.USE_VC_HBT){2}else{0}
+  val flitType = UInt(typeWidth.W)
+
+  val vcIdWidth = if(Parameters.USE_VC_HBT){log2Ceil(Parameters.channelSize)}else{0}
+  val vcId = UInt(vcIdWidth.W)
 }
+
 
 /** A bundle containing a mini-packet and its grants.
  */

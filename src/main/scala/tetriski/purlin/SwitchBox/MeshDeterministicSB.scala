@@ -260,9 +260,9 @@ object testMeshDSB extends App {
   configIO.initRoutingTable("routing_table.dat")
   val network = () => new DeterministicSB(model, 256, configIO)
 
-//  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
-//    c => new MeshDSBTester(c)
-//  }
+  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), network) {
+    c => new MeshDSBTester(c)
+  }
 }
 
 /** A tester for this special network.

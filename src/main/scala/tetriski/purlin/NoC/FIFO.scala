@@ -13,8 +13,6 @@ class DataBundle extends Bundle {
 
 /** A FIFO buffer.
  *
- * TODO: betterFrequency has some bugs now, which has not been used in fact, so it should be corrected.
- *
  * @param gen  the rule of data bundle
  * @param n    the buffer depth
  * @param name the module name
@@ -24,7 +22,7 @@ class FIFO[T <: Data](gen: T, n: Int, name: String, betterFrequency: Boolean = f
     Mux(input + 1.U === n.U, 0.U, input + 1.U)
   }
 
-  val stressWidth = if (Parameters.functionType != FunctionType.XY) {
+  val stressWidth = if (Parameters.functionType != FunctionType.XY || Parameters.USE_VC_HBT) {
     log2Ceil(Parameters.fifoDep + 1) + 2
   } else {
     0
@@ -102,5 +100,5 @@ class FIFO[T <: Data](gen: T, n: Int, name: String, betterFrequency: Boolean = f
 
 object FIFOTest extends App {
   val fifo = () => new FIFO(new DataBundle, 8, "testFIFO")
-//  chisel3.Driver.execute(Array("-td", "tutorial/RTL/", "--full-stacktrace"), fifo)
+  chisel3.Driver.execute(Array("-td", "tutorial/RTL/", "--full-stacktrace"), fifo)
 }

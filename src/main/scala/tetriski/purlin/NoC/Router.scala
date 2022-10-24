@@ -49,9 +49,15 @@ class Router(y: Int, x: Int, packetRule: () => Bundle) extends Module {
   val defaultP = 0.U
   val defaultRouting = 0.U(log2Ceil(4 * (Parameters.xSize + Parameters.ySize)).W)
 
-  val stressWidth = if (Parameters.functionType != FunctionType.XY) {
+  val stressWidth = if (Parameters.functionType != FunctionType.XY || Parameters.USE_VC_HBT) {
     log2Ceil(Parameters.fifoDep + 1) + 2
   } else {
+    0
+  }
+
+  val vcWidth = if(Parameters.USE_VC_HBT){
+    log2Ceil(Parameters.channelSize + 1)
+  }else{
     0
   }
 
@@ -67,6 +73,9 @@ class Router(y: Int, x: Int, packetRule: () => Bundle) extends Module {
 
     val stressIn = Vec(connectSize, Input(UInt((stressWidth).W)))
     val stressOut = Output(UInt((stressWidth).W))
+
+    val vcValidIn = Vec(connectSize, Input(UInt(vcWidth.W)))
+    val vcValidOut = Vec(connectSize, Output(UInt(vcWidth.W)))
   })
 
 

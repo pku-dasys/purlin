@@ -55,6 +55,7 @@ class TorusNoC(routerRule: (Int, Int) => Router, packetRule: () => Bundle) exten
         val dstIndex = dstRouter.connectArray.indexOf(reDirection)
         dstRouter.io.enqs(dstIndex) <> srcRouter.io.deqs(i)
         dstRouter.io.stressIn(dstIndex) <> srcRouter.io.stressOut
+        dstRouter.io.vcValidIn(dstIndex) <> srcRouter.io.vcValidOut(i)
       }
     }
   }

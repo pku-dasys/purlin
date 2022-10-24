@@ -4,7 +4,7 @@ import java.io.{File, FileWriter}
 
 import chisel3.iotesters.PeekPokeTester
 import tetriski.purlin.utils.AlgorithmType.AlgorithmType
-import tetriski.purlin.utils.{AlgorithmType, GlobalRouting, MultiChannelPacket, Parameters}
+import tetriski.purlin.utils.{AlgorithmType, GlobalRouting, MiniPacket, MultiChannelPacket, Parameters}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
@@ -24,19 +24,24 @@ object MeshNoCTest extends App {
   //  Parameters.abandonSourceRouting()
 
   //  val router = () => new MultiChannelRouter(1, 1)
-  for (routersPerDim <- 2 until 7) {
-    Parameters.xSize = routersPerDim
-    Parameters.ySize = routersPerDim
-    val multiChannelRouter = () => new MeshNoC((y, x) =>
-      new MultiChannelRouter(y, x, true), () => new MultiChannelPacket)
-//    chisel3.Driver.execute(Array("-td", "PurlinResult/RTL/NoC-sourceRouting-F/"), multiChannelRouter)
-  }
+//  for (routersPerDim <- 2 until 7) {
+//    Parameters.xSize = routersPerDim
+//    Parameters.ySize = routersPerDim
+//    val multiChannelRouter = () => new MeshNoC((y, x) =>
+//      new MultiChannelRouter(y, x, true), () => new MultiChannelPacket)
+////    chisel3.Driver.execute(Array("-td", "PurlinResult/RTL/NoC-sourceRouting-F/"), multiChannelRouter)
+//  }
 
-  val multiChannelRouter = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x, true), () => new MultiChannelPacket)
+//  val multiChannelRouter = () => new MeshNoC((y, x) => new MultiChannelRouter(y, x, true),
+//    () => new MultiChannelPacket)
   //  chisel3.Driver.execute(Array("-td", "tutorial/RTL/"),
   //    () => new NoCWrapperForPR((y, x) => new MultiChannelRouter(y, x), () => new MultiChannelPacket))
   //  chisel3.Driver.execute(Array("-td", "tutorial/RTL/"), router)
 
+
+  Parameters.USE_VC_HBT = true
+  val VCMesh = () => new MeshNoC((y,x) => new VCRouter(y, x), () => new MiniPacket())
+  chisel3.Driver.execute(Array("-td", "tutorial/RTL/"), VCMesh)
   //  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), multiChannelRouter) {
   //    c => new MeshMCNoCTester(c)
   //  }

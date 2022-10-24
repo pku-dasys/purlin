@@ -29,12 +29,18 @@ class MultiChannelRouter(y: Int, x: Int, betterFrequency: Boolean = false)
     for (j <- 0 until Parameters.channelSize) {
       val packet = MCPacket.packets(j)
       packet.payload := 0.U
+      packet.vcId := DontCare
+      packet.flitType := DontCare
       packet.header.routing := defaultRouting
       packet.header.src.x := defaultX
       packet.header.src.y := defaultY
       packet.header.dst.x := defaultX
       packet.header.dst.y := defaultY
       packet.header.srcPort := defaultP
+    }
+
+    if(i < size - 1){
+      io.vcValidOut(i) := DontCare
     }
 
     deqs(i).bits := MCPacket

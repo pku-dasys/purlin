@@ -79,9 +79,9 @@ class Packer(numIn: Int, numOut: Int, betterFrequency: Boolean = false) extends 
  */
 object PackerTest extends App {
   val packer = () => new Packer(10, 5)
-//  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), packer) {
-//    c => new PackerTester(c)
-//  }
+  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), packer) {
+    c => new PackerTester(c)
+  }
 }
 
 /** A tester of the packer.

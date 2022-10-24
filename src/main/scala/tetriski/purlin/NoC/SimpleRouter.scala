@@ -20,6 +20,8 @@ class SimpleRouter(y: Int, x: Int) extends Router(y, x, () => new MiniPacket) {
     deqs(i).valid := false.B
     val defaultPacket = Wire(new MiniPacket)
     defaultPacket.payload := 0.U
+    defaultPacket.vcId := DontCare
+    defaultPacket.flitType := DontCare
     defaultPacket.header.routing := defaultRouting
     defaultPacket.header.src.x := defaultX
     defaultPacket.header.src.y := defaultY
@@ -28,6 +30,10 @@ class SimpleRouter(y: Int, x: Int) extends Router(y, x, () => new MiniPacket) {
     defaultPacket.header.srcPort := defaultP
     deqs(i).bits := defaultPacket
     enqs(i).ready := false.B
+
+    if(i < size - 1){
+      io.vcValidOut(i) := DontCare
+    }
   }
 
   //  val srcPacketBuffer = Module(new FIFO(new Packet, NoCParam.fifoDep))

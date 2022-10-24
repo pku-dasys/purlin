@@ -75,9 +75,9 @@ class Arbiter(size: Int, numChannel: Int, grantResourceLimit: Int, grantWidth: I
  */
 object ArbiterTest extends App {
   val arbiter = () => new Arbiter(5, 2, Parameters.grantNumLimit, Parameters.getGrantWidth)
-//  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), arbiter) {
-//    c => new ArbiterTester(c)
-//  }
+  iotesters.Driver.execute(Array("-tgvo", "on", "-tbn", "verilator"), arbiter) {
+    c => new ArbiterTester(c)
+  }
 }
 
 /** A tester example of arbiter.
